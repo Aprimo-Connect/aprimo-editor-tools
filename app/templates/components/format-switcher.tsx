@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { useTemplateBuilder } from "../stores/use-template-builder"
 import type { FormatId } from "../types"
 import "./format-switcher.css"
@@ -60,10 +60,12 @@ export function FormatSwitcher({
     }, 0)
   }
 
-  // Callback ref auto-selects the rename input when it mounts
-  function renameInputRef(el: HTMLInputElement | null) {
+  // Stable so React only invokes it on mount/unmount, not every render —
+  // an inline ref callback would re-select-all on each keystroke and wipe
+  // the user's input on the next character.
+  const renameInputRef = useCallback((el: HTMLInputElement | null) => {
     if (el) el.select()
-  }
+  }, [])
 
   return (
     <div className="format-switcher" onBlur={onMenuBlur}>

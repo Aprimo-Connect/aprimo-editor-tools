@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import {
   selectActiveProject,
@@ -111,9 +111,12 @@ export function ProjectSwitcher({
     }, 0)
   }
 
-  function renameInputCallback(el: HTMLInputElement | null) {
+  // Stable so React only invokes it on mount/unmount, not every render —
+  // an inline ref callback would re-select-all on each keystroke and wipe
+  // the user's input on the next character.
+  const renameInputCallback = useCallback((el: HTMLInputElement | null) => {
     if (el) el.select()
-  }
+  }, [])
 
   return (
     <div className="project-switcher" onBlur={onMenuBlur}>
