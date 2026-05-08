@@ -12,7 +12,7 @@ export function Footer() {
           <p className="text-sm text-muted-foreground">
             Open source &mdash;{" "}
             <a
-              href="https://github.com/Aprimo-SolutionConsulting/aprimo-editor-tools"
+              href="https://github.com/Aprimo-Connect/aprimo-editor-tools"
               target="_blank"
               rel="noopener noreferrer"
               className="underline underline-offset-2 hover:text-foreground transition-colors"
