@@ -1,0 +1,435 @@
+/* ============================================================================
+   DYNAMIC CONTENT WORKSPACE — Styling boundary
+
+   Everything inside `.tpl-scope` uses these CSS variables and the original
+   AprimoApi visual conventions. Tailwind is intentionally NOT used inside
+   the workspace — the chrome (navbar, footer, settings dialog) uses the
+   host theme; the workspace preserves its own.
+
+   Component-specific rules live alongside each component in
+   `components/<name>.css`. This file holds the variable definitions, the
+   reset, and the workspace shell + canvas viewport rules.
+   ============================================================================ */
+
+.tpl-scope {
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+  --primary-light: #e0e7ff;
+  --bg: #f8fafc;
+  --card-bg: #ffffff;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --success: #22c55e;
+  --success-bg: #f0fdf4;
+  --error: #ef4444;
+  --error-bg: #fef2f2;
+  --warning: #f59e0b;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --transition: 180ms ease;
+
+  font-family: "Inter", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.tpl-scope,
+.tpl-scope *,
+.tpl-scope *::before,
+.tpl-scope *::after {
+  box-sizing: border-box;
+}
+
+.tpl-scope a { text-decoration: none; color: inherit; }
+.tpl-scope button { cursor: pointer; font-family: inherit; border: none; background: none; }
+.tpl-scope input,
+.tpl-scope textarea,
+.tpl-scope select { font-family: inherit; }
+.tpl-scope img { display: block; max-width: 100%; }
+
+/* ── Workspace shell ───────────────────────────────────────────── */
+.tpl-scope .tpl-page {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  height: 100%;
+}
+
+/* min-height: 0 lets these flex children shrink below intrinsic content
+   size — without it, content taller than the viewport stretches the panel
+   beyond .tpl-page and the scroll container inside never gets a chance to
+   activate its overflow-y. */
+.tpl-scope .tpl-controls {
+  width: 340px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  background: var(--card-bg);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  z-index: 1;
+}
+
+.tpl-scope .tpl-canvas-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #e8ecf1;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+
+/* ── Toolbar ───────────────────────────────────────────────────── */
+.tpl-scope .tpl-canvas-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 45px;
+  flex-shrink: 0;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  z-index: 2;
+}
+.tpl-scope .toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tpl-scope .toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tpl-scope .toolbar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border, #e2e8f0);
+  flex-shrink: 0;
+}
+
+/* ── Zoom controls ─────────────────────────────────────────────── */
+.tpl-scope .zoom-controls {
+  display: flex;
+  align-items: center;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.tpl-scope .zoom-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.tpl-scope .zoom-btn:hover { background: var(--bg); color: var(--text); }
+.tpl-scope .zoom-display {
+  padding: 0 8px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  min-width: 48px;
+  transition: background 0.12s;
+}
+.tpl-scope .zoom-display:hover { background: var(--bg); }
+
+/* ── Canvas viewport ───────────────────────────────────────────── */
+.tpl-scope .canvas-viewport {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  background-color: #e8ecf1;
+  background-image: radial-gradient(circle, #c5ccd6 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.tpl-scope .cursor-default { cursor: crosshair; }
+.tpl-scope .cursor-grab { cursor: grab; }
+.tpl-scope .cursor-grabbing { cursor: grabbing; }
+.tpl-scope .cursor-move { cursor: move; }
+.tpl-scope .cursor-ns { cursor: ns-resize; }
+.tpl-scope .cursor-ew { cursor: ew-resize; }
+.tpl-scope .cursor-nwse { cursor: nwse-resize; }
+.tpl-scope .cursor-nesw { cursor: nesw-resize; }
+
+.tpl-scope .world-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+.tpl-scope .world-card {
+  position: absolute;
+  user-select: none;
+  cursor: move;
+}
+
+.tpl-scope .draw-rect {
+  position: absolute;
+  border: 2px dashed #6366f1;
+  background: rgba(99, 102, 241, 0.08);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* ── Canvas hint ───────────────────────────────────────────────── */
+.tpl-scope .canvas-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 14px;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 5;
+  white-space: nowrap;
+}
+
+/* ── Empty state ───────────────────────────────────────────────── */
+.tpl-scope .empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  text-align: center;
+  gap: 14px;
+}
+.tpl-scope .empty-state h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #64748b;
+  margin: 0;
+}
+.tpl-scope .empty-state p {
+  font-size: 13px;
+  max-width: 300px;
+  line-height: 1.65;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* ── Source loading overlay ────────────────────────────────────── */
+.tpl-scope .canvas-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(232, 236, 241, 0.78);
+  backdrop-filter: blur(3px);
+  gap: 14px;
+  z-index: 10;
+  animation: canvas-loading-fade-in 0.2s ease-out 0.15s both;
+  pointer-events: none;
+}
+.tpl-scope .canvas-loading-overlay.visible { display: flex; }
+@keyframes canvas-loading-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tpl-scope .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: tpl-spin 0.7s linear infinite;
+}
+@keyframes tpl-spin { to { transform: rotate(360deg); } }
+
+/* ── Resize handles ────────────────────────────────────────────── */
+.tpl-scope .resize-handle {
+  position: absolute;
+  z-index: 10;
+}
+
+.tpl-scope .rh-nw,
+.tpl-scope .rh-ne,
+.tpl-scope .rh-sw,
+.tpl-scope .rh-se {
+  width: 12px;
+  height: 12px;
+  background: white;
+  border: 2px solid #6366f1;
+  border-radius: 2px;
+}
+.tpl-scope .rh-nw { top: -6px; left: -6px; cursor: nwse-resize; }
+.tpl-scope .rh-ne { top: -6px; right: -6px; cursor: nesw-resize; }
+.tpl-scope .rh-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+.tpl-scope .rh-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+
+.tpl-scope .rh-n,
+.tpl-scope .rh-s,
+.tpl-scope .rh-e,
+.tpl-scope .rh-w {
+  background: transparent;
+}
+.tpl-scope .rh-n { top: -4px; left: 12px; right: 12px; height: 8px; cursor: ns-resize; }
+.tpl-scope .rh-s { bottom: -4px; left: 12px; right: 12px; height: 8px; cursor: ns-resize; }
+.tpl-scope .rh-e { top: 12px; right: -4px; bottom: 12px; width: 8px; cursor: ew-resize; }
+.tpl-scope .rh-w { top: 12px; left: -4px; bottom: 12px; width: 8px; cursor: ew-resize; }
+
+.tpl-scope .resize-dims {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+  padding: 6px 14px;
+  background: rgba(99, 102, 241, 0.88);
+  backdrop-filter: blur(6px);
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 12;
+  white-space: nowrap;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ── Snap guides ───────────────────────────────────────────────── */
+.tpl-scope .snap-guide {
+  position: absolute;
+  pointer-events: none;
+  z-index: 50;
+}
+.tpl-scope .snap-guide-v { border-left: 1px dashed #f43f5e; }
+.tpl-scope .snap-guide-h { border-top: 1px dashed #f43f5e; }
+
+/* ── Content/subject interference UI ───────────────────────────── */
+.tpl-scope .toolbar-interference {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px 3px 7px;
+  border-radius: 10px;
+  border: 1.5px solid #d97706;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.tpl-scope .toolbar-interference:hover { background: #fde68a; }
+.tpl-scope .toolbar-interference svg {
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+.tpl-scope .interference-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: rgba(217, 119, 6, 0.9);
+  color: #fff;
+  font-family: inherit;
+  backdrop-filter: blur(4px);
+  transition: background 0.12s;
+  line-height: 1;
+}
+.tpl-scope .interference-badge:hover {
+  background: rgba(180, 83, 9, 0.95);
+}
+
+/* ── Right-click context menu ──────────────────────────────────── */
+.tpl-scope .ctx-menu {
+  position: fixed;
+  z-index: 9999;
+  min-width: 180px;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  padding: 4px;
+  backdrop-filter: blur(12px);
+  animation: ctx-fade-in 0.1s ease;
+}
+@keyframes ctx-fade-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.tpl-scope .ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text, #1f2937);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+.tpl-scope .ctx-item:hover { background: rgba(99, 102, 241, 0.08); }
+.tpl-scope .ctx-item:disabled { opacity: 0.35; cursor: default; }
+.tpl-scope .ctx-item:disabled:hover { background: transparent; }
+.tpl-scope .ctx-item svg { opacity: 0.5; flex-shrink: 0; }
+.tpl-scope .ctx-item:hover svg { opacity: 0.8; }
+.tpl-scope .ctx-paste { color: #6366f1; }
+.tpl-scope .ctx-paste svg { opacity: 0.7; }
+.tpl-scope .ctx-danger { color: #ef4444; }
+.tpl-scope .ctx-danger svg { stroke: #ef4444; opacity: 0.7; }
+.tpl-scope .ctx-danger:hover { background: rgba(239, 68, 68, 0.08); }
+
+.tpl-scope .ctx-divider {
+  height: 1px;
+  background: var(--border, #e5e7eb);
+  margin: 3px 6px;
+}
