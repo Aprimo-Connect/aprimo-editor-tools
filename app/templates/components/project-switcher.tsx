@@ -210,15 +210,15 @@ export function ProjectSwitcher({
               Import Project
             </button>
           </div>
-          <input
-            ref={importInputRef}
-            type="file"
-            accept=".json"
-            style={{ display: "none" }}
-            onChange={handleImport}
-          />
         </div>
       )}
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".json"
+        style={{ display: "none" }}
+        onChange={handleImport}
+      />
     </div>
   )
 }
