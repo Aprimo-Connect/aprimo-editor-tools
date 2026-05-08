@@ -1,0 +1,46 @@
+.tpl-scope .right-panel {
+  width: 290px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  background: var(--card-bg);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  z-index: 25;
+}
+
+/* When the right-panel wraps FormatPropertiesPanel, drop its own border/width
+   since this wrapper supplies them. */
+.tpl-scope .right-panel .props-panel {
+  border-left: none;
+  width: 100%;
+}
+
+.tpl-scope .rp-header {
+  flex-shrink: 0;
+  padding: 0 16px;
+  height: 45px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card-bg);
+  display: flex;
+  align-items: center;
+}
+.tpl-scope .rp-header-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Match FormatPropertiesPanel header to same toolbar height */
+.tpl-scope .right-panel .props-header {
+  padding: 0 14px;
+  height: 45px;
+  box-sizing: border-box;
+}
+
+.tpl-scope .rp-styles-section {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--card-bg);
+}

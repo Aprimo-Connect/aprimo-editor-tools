@@ -137,6 +137,56 @@ Video Studio supports two webhook action modes:
 
 > FFmpeg.wasm requires `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless` response headers on the `/video-studio` route. These are already configured in `next.config.mjs`.
 
+### Dynamic Content
+
+A multi-format template builder. Load an Aprimo asset, define a content layout once (headline, body text, CTA, logo) and styles, then add format cards — each renders the same content at a different size. Export the lot as a ZIP, drive variants from a spreadsheet, or publish renditions back to the source record as additional files.
+
+| Parameter | Source | Description |
+|-----------|--------|-------------|
+| `requestId` | Webhook (multi-record mode) | UUID handle used to fetch the record list from Supabase |
+| `record` | Webhook (`&mode=singleitem`) | Single Aprimo record ID to import directly |
+
+**Workspace**
+
+- Infinite canvas — pan, zoom, drag to position format cards, draw on empty space to create new formats
+- Per-format anchor (9-point grid) with per-layer and per-asset overrides
+- Focal-point picker with optional Aprimo smart-crop URLs
+- Content / subject interference detection — a "Fix" button suggests the best non-overlapping anchor when text covers the focal subject
+- Multi-asset projects — switch between assets, each with its own focal area
+- Multi-project storage in `localStorage` — projects persist across reloads and can be exported / imported as JSON
+
+**Layers**
+
+- Headline, Text, CTA — independent font, weight, color, and gap settings
+- Reorder, hide per format, or override anchor per layer
+- Optional logo placed in any of 9 anchor positions
+
+**Bulk data**
+
+- Drag in a CSV / XLSX — auto-maps columns to layers by name
+- Step through rows to preview each variant live on the canvas
+- Export all rows × all formats as a single ZIP organised by row
+
+**Actions**
+
+| Button | Description |
+|--------|-------------|
+| Download All (ZIP) | Renders every format at full resolution and downloads as a zip |
+| Publish to DAM | Renders every format and attaches each as an additional file on the source record's master file. Existing same-named renditions are replaced. |
+| View in DAM | Appears once renditions are published — opens the source record in a new tab |
+| Export All (bulk) | Renders rows × formats from the imported spreadsheet as a structured zip |
+
+**Webhook actions**
+
+| Action | Mode | Description |
+|--------|------|-------------|
+| `templatesbasket` | Multi-record (default) | Open Dynamic Content with selected DAM assets imported into a chosen project |
+| `templates` | Single-record (`&mode=singleitem`) | Open Dynamic Content with a single asset imported |
+
+When the page loads with `?requestId=` (or `?record=`) a project picker modal lets the user pick an existing project to import into, or create a new one. Assets are fetched via the SDK to resolve their CDN URLs.
+
+> Logos load via `<img crossorigin="anonymous">`. Logos hosted on a CORS-permissive origin (Aprimo CDN, your own bucket) work; restrictive ones (HubSpot etc.) won't load — self-host or use an Aprimo CDN URL.
+
 ### Excel Import
 
 Import metadata from an Excel file into Aprimo records.
@@ -182,7 +232,9 @@ NEXT_PUBLIC_APRIMO_CLIENT_SECRET=your-client-secret
   "myitem":             "https://your-deployment.vercel.app/my-item",
   "videoresizer":       "https://your-deployment.vercel.app/video-resizer",
   "videostudiobasket":  "https://your-deployment.vercel.app/video-studio",
-  "videostudio":        "https://your-deployment.vercel.app/video-studio"
+  "videostudio":        "https://your-deployment.vercel.app/video-studio",
+  "templatesbasket":    "https://your-deployment.vercel.app/templates",
+  "templates":          "https://your-deployment.vercel.app/templates"
 }
 ```
 
