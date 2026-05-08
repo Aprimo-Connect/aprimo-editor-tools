@@ -1,0 +1,166 @@
+.tpl-scope .dhpp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+}
+
+.tpl-scope .dhpp-modal {
+  background: var(--card-bg, #ffffff);
+  color: var(--text, #0f172a);
+  border-radius: 10px;
+  width: min(560px, 92vw);
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+  border: 1px solid var(--border, #e2e8f0);
+}
+
+.tpl-scope .dhpp-header {
+  padding: 18px 22px 12px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+.tpl-scope .dhpp-header h2 {
+  margin: 0;
+  font-size: 17px;
+  color: var(--text, #0f172a);
+}
+.tpl-scope .dhpp-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-muted, #64748b);
+}
+
+.tpl-scope .dhpp-body {
+  padding: 14px 22px;
+  overflow-y: auto;
+}
+
+.tpl-scope .dhpp-state {
+  padding: 22px;
+  font-size: 14px;
+  color: var(--text, #0f172a);
+}
+.tpl-scope .dhpp-state.error { color: #b91c1c; }
+
+.tpl-scope .dhpp-fetch-status {
+  font-size: 12px;
+  color: var(--text-muted, #64748b);
+  margin-bottom: 12px;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tpl-scope .dhpp-fetch-status.ready { color: #15803d; }
+.tpl-scope .dhpp-warn { color: #b45309; margin-left: 6px; }
+
+.tpl-scope .dhpp-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(15, 23, 42, 0.15);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: dhpp-spin 0.7s linear infinite;
+}
+@keyframes dhpp-spin { to { transform: rotate(360deg); } }
+
+.tpl-scope .dhpp-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.tpl-scope .dhpp-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  color: var(--text, #0f172a);
+  background: var(--card-bg, #ffffff);
+}
+.tpl-scope .dhpp-option:hover {
+  background: var(--bg, #f8fafc);
+}
+.tpl-scope .dhpp-option.selected {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.08);
+}
+.tpl-scope .dhpp-option input[type="radio"] {
+  margin: 0;
+  accent-color: #6366f1;
+}
+.tpl-scope .dhpp-option-name {
+  flex: 1;
+  font-size: 13px;
+}
+.tpl-scope .dhpp-option-meta {
+  font-size: 11px;
+  color: var(--text-muted, #64748b);
+}
+
+.tpl-scope .dhpp-option-new {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tpl-scope .dhpp-newname-input {
+  flex: 1 0 100%;
+  margin-top: 4px;
+  padding: 6px 10px;
+  background: var(--bg, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 5px;
+  color: var(--text, #0f172a);
+  font-size: 13px;
+}
+.tpl-scope .dhpp-newname-input:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+
+.tpl-scope .dhpp-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 22px 18px;
+  border-top: 1px solid var(--border, #e2e8f0);
+  background: var(--card-bg, #ffffff);
+}
+
+.tpl-scope .dhpp-btn {
+  padding: 8px 16px;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.tpl-scope .dhpp-btn-secondary {
+  background: transparent;
+  color: var(--text, #0f172a);
+  border-color: var(--border, #e2e8f0);
+}
+.tpl-scope .dhpp-btn-secondary:hover { background: var(--bg, #f8fafc); }
+.tpl-scope .dhpp-btn-primary {
+  background: #6366f1;
+  color: white;
+  border-color: #6366f1;
+}
+.tpl-scope .dhpp-btn-primary:hover:not(:disabled) {
+  background: #4f52d6;
+}
+.tpl-scope .dhpp-btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

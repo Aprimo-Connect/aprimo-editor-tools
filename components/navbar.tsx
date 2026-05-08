@@ -7,7 +7,12 @@ import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/page-header"
 import Image from "next/image"
 
-export function Navbar() {
+export interface NavbarProps {
+  /** When false, the breadcrumb sub-bar is suppressed. Default: true. */
+  showPageHeader?: boolean
+}
+
+export function Navbar({ showPageHeader = true }: NavbarProps = {}) {
   const { isConnected, connection } = useAprimo()
 
   return (
@@ -32,6 +37,11 @@ export function Navbar() {
             {isConnected && (
               <Link href="/video-studio" className="text-muted-foreground hover:text-foreground transition-colors">
                 Video Studio
+              </Link>
+            )}
+            {isConnected && (
+              <Link href="/templates" className="text-muted-foreground hover:text-foreground transition-colors">
+                Dynamic Content
               </Link>
             )}
             {isConnected && connection?.environment && (
@@ -64,7 +74,7 @@ export function Navbar() {
         </div>
       </div>
 
-      <PageHeader />
+      {showPageHeader && <PageHeader />}
     </nav>
   )
 }

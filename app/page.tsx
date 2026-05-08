@@ -3,7 +3,7 @@
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
-import { FileSpreadsheet, Upload, Clapperboard, House } from "lucide-react"
+import { FileSpreadsheet, Upload, Clapperboard, House, LayoutTemplate } from "lucide-react"
 import Link from "next/link"
 import { useAprimo } from "@/context/aprimo-context"
 
@@ -49,6 +49,17 @@ export default function Home() {
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Select assets from Aprimo and generate a video.
+                  </p>
+                </div>
+              </Link>
+              <Link href="/templates">
+                <div className="border border-border rounded-lg p-6 text-left hover:bg-muted/50 transition-colors cursor-pointer">
+                  <div className="flex items-center gap-3 mb-2">
+                    <LayoutTemplate className="h-5 w-5 text-primary" />
+                    <h2 className="text-lg font-semibold">Dynamic Content</h2>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Build multi-format banners from a single asset and publish renditions back to the DAM.
                   </p>
                 </div>
               </Link>

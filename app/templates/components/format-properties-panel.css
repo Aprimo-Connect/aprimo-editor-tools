@@ -1,0 +1,384 @@
+.tpl-scope .props-panel {
+  width: 260px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  background: var(--card-bg);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  z-index: 25;
+}
+
+.tpl-scope .props-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.tpl-scope .props-name-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  transition: all 0.12s;
+}
+.tpl-scope .props-name-input:hover { background: var(--bg); }
+.tpl-scope .props-name-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: var(--bg);
+}
+
+.tpl-scope .props-close {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.12s;
+  flex-shrink: 0;
+}
+.tpl-scope .props-close:hover { background: var(--bg); }
+
+.tpl-scope .props-body {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--card-bg);
+}
+
+.tpl-scope .props-section {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.tpl-scope .props-section:last-child { border-bottom: none; }
+
+.tpl-scope .props-card {
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px 10px;
+}
+.tpl-scope .props-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.tpl-scope .props-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.tpl-scope .props-num-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 5px 8px;
+  transition: border-color 0.12s;
+  min-width: 0;
+  overflow: hidden;
+}
+.tpl-scope .props-num-field:focus-within { border-color: #6366f1; }
+.tpl-scope .props-num-field label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 12px;
+}
+.tpl-scope .props-num-field input {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--text);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding: 0;
+}
+.tpl-scope .props-num-field input:focus { outline: none; }
+.tpl-scope .props-field-unit {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-muted);
+  opacity: 0.6;
+  margin-left: 1px;
+}
+.tpl-scope .props-num-field input::-webkit-inner-spin-button,
+.tpl-scope .props-num-field input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.tpl-scope .props-num-field input[type="number"] { -moz-appearance: textfield; }
+
+.tpl-scope .anchor-grid-wrap { display: flex; justify-content: center; }
+.tpl-scope .anchor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 28px);
+  gap: 3px;
+}
+.tpl-scope .anchor-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border);
+  background: var(--card-bg);
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: all 0.12s;
+  font-family: inherit;
+}
+.tpl-scope .anchor-btn:hover { border-color: #6366f1; color: #6366f1; }
+.tpl-scope .anchor-btn.active {
+  border-color: #6366f1;
+  background: #ede9fe;
+  color: #6366f1;
+}
+
+.tpl-scope .anchor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.tpl-scope .anchor-header-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.tpl-scope .anchor-header-reset {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #6366f1;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s, opacity 0.15s;
+  opacity: 0.7;
+  flex-shrink: 0;
+  padding: 0;
+}
+.tpl-scope .anchor-header-reset:hover { background: #ede9fe; opacity: 1; }
+
+.tpl-scope .sizing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.tpl-scope .elem-selector {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.tpl-scope .elem-chip {
+  padding: 3px 10px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1.5px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-muted);
+  font-family: inherit;
+  transition: all 0.12s;
+}
+.tpl-scope .elem-chip:hover { border-color: #a5b4fc; color: var(--text); }
+.tpl-scope .elem-chip.selected {
+  border-color: #6366f1;
+  background: #6366f1;
+  color: white;
+}
+.tpl-scope .elem-chip.custom:not(.selected) {
+  border-color: #a5b4fc;
+  color: #6366f1;
+}
+
+.tpl-scope .vis-toggles {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.tpl-scope .elem-toggle {
+  padding: 3px 10px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1.5px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-muted);
+  font-family: inherit;
+  transition: all 0.12s;
+}
+.tpl-scope .elem-toggle.on {
+  border-color: #6366f1;
+  background: #ede9fe;
+  color: #6366f1;
+}
+
+.tpl-scope .props-slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tpl-scope .props-slider-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+.tpl-scope .props-reset-inline {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: default;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+  opacity: 0.25;
+  flex-shrink: 0;
+  padding: 0;
+}
+.tpl-scope .props-reset-inline.modified {
+  color: #6366f1;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.tpl-scope .props-reset-inline.modified:hover {
+  background: #ede9fe;
+  opacity: 1;
+}
+
+.tpl-scope .props-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tpl-scope .props-slider-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  accent-color: #6366f1;
+  cursor: pointer;
+}
+.tpl-scope .props-num-inline {
+  width: 42px;
+  padding: 3px 4px;
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card-bg);
+  font-variant-numeric: tabular-nums;
+}
+.tpl-scope .props-num-inline:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+.tpl-scope .props-num-inline::-webkit-inner-spin-button,
+.tpl-scope .props-num-inline::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.tpl-scope .props-num-inline { -moz-appearance: textfield; }
+
+.tpl-scope .props-unit {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  min-width: 14px;
+}
+
+.tpl-scope .props-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+}
+.tpl-scope .props-export-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px;
+  border-radius: 6px;
+  background: #6366f1;
+  color: white;
+  border: none;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.12s;
+}
+.tpl-scope .props-export-btn:hover { background: #4f46e5; }
+.tpl-scope .props-export-btn svg { stroke: white; }
+.tpl-scope .props-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px;
+  border-radius: 5px;
+  background: transparent;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.12s;
+}
+.tpl-scope .props-delete-btn:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #ef4444;
+}
+.tpl-scope .props-delete-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
