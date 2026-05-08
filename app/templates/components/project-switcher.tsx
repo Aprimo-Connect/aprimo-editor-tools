@@ -100,10 +100,15 @@ export function ProjectSwitcher({
     importInputRef.current?.click()
   }
 
-  function onMenuBlur() {
+  function onMenuBlur(e: React.FocusEvent<HTMLDivElement>) {
+    // Defer so focus can settle on the new target — when a button is
+    // replaced by an input mid-render, focus briefly routes through
+    // body before the ref callback's .select() lands on the input.
+    const root = e.currentTarget
     setTimeout(() => {
-      if (!editingId) closeMenu()
-    }, 200)
+      if (root.contains(document.activeElement)) return
+      closeMenu()
+    }, 0)
   }
 
   function renameInputCallback(el: HTMLInputElement | null) {

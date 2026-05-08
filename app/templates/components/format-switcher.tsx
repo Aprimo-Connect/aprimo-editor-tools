@@ -49,11 +49,15 @@ export function FormatSwitcher({
     onDeleteFormat(id)
   }
 
-  function onMenuBlur() {
-    // Delay so click on menu items registers before close
+  function onMenuBlur(e: React.FocusEvent<HTMLDivElement>) {
+    // Defer so focus can settle on the new target — when a button is
+    // replaced by an input mid-render, focus briefly routes through
+    // body before the ref callback's .select() lands on the input.
+    const root = e.currentTarget
     setTimeout(() => {
-      if (!editingId) closeMenu()
-    }, 200)
+      if (root.contains(document.activeElement)) return
+      closeMenu()
+    }, 0)
   }
 
   // Callback ref auto-selects the rename input when it mounts

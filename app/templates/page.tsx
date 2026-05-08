@@ -711,7 +711,7 @@ function TemplatesContent() {
     const wasCurrent = id === pm.activeProjectId
     pm.deleteProject(id)
     if (wasCurrent) {
-      const newActive = pm.activeProjectId
+      const newActive = useProjectManager.getState().activeProjectId
       if (newActive) {
         const tb = useTemplateBuilder.getState()
         source.reset()
