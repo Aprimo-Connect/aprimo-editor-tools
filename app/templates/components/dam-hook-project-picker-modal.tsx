@@ -6,6 +6,7 @@ import {
   useProjectManager,
 } from "../stores/use-project-manager"
 import type { Asset } from "../types"
+import { useShallow } from "zustand/react/shallow"
 import "./dam-hook-project-picker-modal.css"
 
 export type ConfirmPayload =
@@ -38,7 +39,7 @@ export function DamHookProjectPickerModal({
   onConfirm,
   onCancel,
 }: DamHookProjectPickerModalProps) {
-  const projects = useProjectManager(selectProjectList)
+  const projects = useProjectManager(useShallow(selectProjectList))
 
   const [selectedProjectId, setSelectedProjectId] = useState("")
   const [newProjectName, setNewProjectName] = useState(defaultNewProjectName())
@@ -148,9 +149,8 @@ export function DamHookProjectPickerModal({
               })}
 
               <label
-                className={`dhpp-option dhpp-option-new${
-                  selectedProjectId === NEW_PROJECT_SENTINEL ? " selected" : ""
-                }`}
+                className={`dhpp-option dhpp-option-new${selectedProjectId === NEW_PROJECT_SENTINEL ? " selected" : ""
+                  }`}
               >
                 <input
                   type="radio"
