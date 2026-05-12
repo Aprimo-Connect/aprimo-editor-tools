@@ -10,6 +10,7 @@ import {
 } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Expander } from "aprimo-js"
+import type { Record as AprimoRecord, FileVersion } from "aprimo-js/model"
 import { useShallow } from "zustand/react/shallow"
 import { Navbar } from "@/components/navbar"
 import { useAprimo } from "@/context/aprimo-context"
@@ -290,14 +291,8 @@ function TemplatesContent() {
         )
         try {
           const expander = Expander.create()
-          ;(
-            expander.for("record") as { expand: (...f: string[]) => Expander }
-          ).expand("masterfilelatestversion")
-          ;(
-            expander.for("fileversion") as {
-              expand: (...f: string[]) => Expander
-            }
-          ).expand("publicuris")
+            .for<AprimoRecord>("Record").expand("masterfilelatestversion")
+            .for<FileVersion>("FileVersion").expand("publicuris")
 
           const BATCH_SIZE = 50
           const ids = idsToFetch.map((i) => i.id)

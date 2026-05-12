@@ -7,6 +7,7 @@ import { Footer } from "@/components/footer"
 import { useAprimo } from "@/context/aprimo-context"
 import { supabase } from "@/lib/supabase"
 import { Expander } from "aprimo-js"
+import type { Record as AprimoSDKRecord, FileVersion } from "aprimo-js/model"
 import { Button } from "@/components/ui/button"
 import { LayoutGrid, List } from "lucide-react"
 import { FieldDefinitionsPanel } from "@/components/field-definitions-panel"
@@ -76,8 +77,8 @@ function BasketExampleContent() {
     if (!client) return []
 
     const expander = Expander.create()
-    ;(expander.for("record") as { expand: (...f: string[]) => Expander }).expand("fields", "masterfilelatestversion")
-    ;(expander.for("fileversion") as { expand: (...f: string[]) => Expander }).expand("thumbnail", "preview")
+      .for<AprimoSDKRecord>("Record").expand("fields", "masterfilelatestversion")
+      .for<FileVersion>("FileVersion").expand("thumbnail", "preview")
     if (fields.length > 0) expander.selectRecordFields(...fields)
 
     const BATCH_SIZE = 50

@@ -6,6 +6,7 @@ import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { useAprimo } from "@/context/aprimo-context"
 import { Expander } from "aprimo-js"
+import type { Record as AprimoRecord, FileVersion } from "aprimo-js/model"
 
 function MyItemContent() {
   const searchParams = useSearchParams()
@@ -26,24 +27,17 @@ function MyItemContent() {
 
       // Fetch the record with all expandable data
       const expander = Expander.create()
-      ;(expander.for("record") as { expand: (...f: string[]) => Expander }).expand(
-        "fields",
-        "masterfilelatestversion",
-        "classifications"
-      )
-      ;(expander.for("fileversion") as { expand: (...f: string[]) => Expander }).expand("thumbnail", "preview")
+        .for<AprimoRecord>("Record").expand("fields", "masterfilelatestversion", "classifications")
+        .for<FileVersion>("FileVersion").expand("thumbnail", "preview")
 
-      const result = await client!.search.records(
-        { searchExpression: { expression: `id='${recordId}'` } },
-        expander
-      )
+      const result = await client!.records.getById(recordId!, expander)
 
       if (!result.ok) {
         console.error("[my-item] failed to fetch record:", result.error)
         return
       }
 
-      const record = ((result.data as any)?.items ?? [])[0]
+      const record = result.data as any
       if (!record) {
         console.warn("[my-item] record not found:", recordId)
         return

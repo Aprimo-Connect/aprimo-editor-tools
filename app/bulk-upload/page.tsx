@@ -240,6 +240,7 @@ export default function BulkUploadPage() {
         updateFile(item.uid, { status: "uploading", progress: 0 })
 
         const uploadResult = await client.uploader.uploadFile(item.file, {
+          parallelLimit: 4,
           onProgress: (uploaded, total) => {
             const pct = total > 0 ? Math.round((uploaded / total) * 100) : 0
             setFiles((prev) => prev.map((f) => (f.uid === item.uid ? { ...f, progress: pct } : f)))

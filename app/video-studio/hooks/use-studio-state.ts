@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
 import { Expander } from "aprimo-js"
+import type { Record as AprimoRecord } from "aprimo-js/model"
 import { useAprimo } from "@/context/aprimo-context"
 import { supabase } from "@/lib/supabase"
 import { PLATFORMS } from "../../video-resizer/constants"
@@ -135,13 +136,13 @@ export function useStudioState({ recordParam, basketParam }: { recordParam: stri
     setLoadingRecord(true)
 
     const expander = Expander.create()
-    ;(expander.for("record") as any).expand("fields")
-    expander.selectRecordFields(jsonFieldName)
+      .for<AprimoRecord>("Record").expand("fields")
+      .selectRecordFields(jsonFieldName)
 
-    client.search.records({ searchExpression: { expression: `id='${recordParam}'` } }, expander)
+    client.records.getById(recordParam, expander)
       .then((result: any) => {
         if (!result.ok) throw new Error(result.error?.message ?? "Failed to load record")
-        const record = result.data?.items?.[0] as any
+        const record = result.data as any
         if (!record) throw new Error("Record not found")
 
         const fields: any[] = record._embedded?.fields?.items ?? []
@@ -176,7 +177,7 @@ export function useStudioState({ recordParam, basketParam }: { recordParam: stri
 
       const ids: string[] = row.recordList
       const expander = Expander.create()
-      ;(expander.for("record") as any).expand("masterfilelatestversion")
+        .for<AprimoRecord>("Record").expand("masterfilelatestversion")
 
       const BATCH = 50
       const batchResults = await Promise.all(

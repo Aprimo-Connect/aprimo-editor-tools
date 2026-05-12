@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Expander } from "aprimo-js"
+import type { Record as AprimoRecord, File as AprimoFile } from "aprimo-js/model"
 
 interface UseVideoRecordResult {
   videoUrl: string | null
@@ -32,17 +33,14 @@ export function useVideoRecord(
       setError(null)
       try {
         setLoadingMessage("Loading record…")
-        const expander = (Expander.create() as any)
-          .for("Record").expand("masterfile")
-          .for("File").expand("fileversions")
+        const expander = Expander.create()
+          .for<AprimoRecord>("Record").expand("masterfile")
+          .for<AprimoFile>("File").expand("fileversions")
 
-        const result = await client.search.records(
-          { searchExpression: { expression: `id='${recordId}'` } },
-          expander
-        )
+        const result = await client.records.getById(recordId!, expander)
         if (!result.ok) throw new Error(result.error?.message ?? "Failed to load record")
 
-        const record = result.data?.items?.[0] as any
+        const record = result.data as any
         if (!record) throw new Error("Record not found")
 
         const masterFile = record._embedded?.masterfile

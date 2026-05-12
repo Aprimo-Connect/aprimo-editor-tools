@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Expander } from "aprimo-js"
+import type { Record as AprimoRecord } from "aprimo-js/model"
 import { VideoClip, AudioClip, TransitionClip, TextClip, SelectedAsset } from "../types"
 import { runPipeline } from "../ffmpeg-pipeline"
 import { buildVfFilter } from "../../video-resizer/constants"
@@ -91,6 +92,7 @@ export function useProduceVideo({
 
       setProduceProgress("Uploading…")
       const uploadResult = await client.uploader.uploadFile(file, {
+        parallelLimit: 4,
         onProgress: (uploaded: number, total: number) => {
           setProduceProgress(`Uploading… ${Math.round((uploaded / total) * 100)}%`)
         },
@@ -126,12 +128,10 @@ export function useProduceVideo({
       if (savedRecordId) {
         setProduceProgress("Updating asset…")
         const expander = Expander.create()
-        ;(expander.for("record") as any).expand("masterfile")
-        const recRes = await client.search.records(
-          { searchExpression: { expression: `id='${savedRecordId}'` } }, expander,
-        )
+          .for<AprimoRecord>("Record").expand("masterfile")
+        const recRes = await client.records.getById(savedRecordId!, expander)
         if (!recRes.ok) throw new Error((recRes as any).error?.message ?? "Failed to fetch record")
-        const masterFileId = (recRes.data?.items?.[0] as any)?._embedded?.masterfile?.id as string | undefined
+        const masterFileId = (recRes.data as any)?._embedded?.masterfile?.id as string | undefined
         if (!masterFileId) throw new Error("Could not determine master file ID")
 
         const updateBody: any = {

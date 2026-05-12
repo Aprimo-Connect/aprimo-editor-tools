@@ -105,6 +105,7 @@ export function useVideoProcessing({
       setProgress("Uploading…")
       setProgressPct(0)
       const uploadResult = await client.uploader.uploadFile(file, {
+        parallelLimit: 4,
         onProgress: (uploaded: number, total: number) => {
           const pct = Math.round((uploaded / total) * 100)
           setProgress(`Uploading… ${pct}%`)

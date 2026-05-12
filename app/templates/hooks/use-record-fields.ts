@@ -2,6 +2,7 @@
 
 import { useCallback } from "react"
 import { Expander } from "aprimo-js"
+import type { Record as AprimoRecord } from "aprimo-js/model"
 import { useAprimo } from "@/context/aprimo-context"
 import type { AvailableField } from "../types"
 
@@ -56,15 +57,12 @@ export function useRecordFields() {
       if (!client || !recordId) return []
 
       const expander = Expander.create()
-      ;(expander.for("record") as { expand: (...f: string[]) => unknown }).expand("fields")
+        .for<AprimoRecord>("Record").expand("fields")
 
-      const result = await client.search.records(
-        { searchExpression: { expression: `id='${recordId}'` } },
-        expander,
-      )
+      const result = await client.records.getById(recordId, expander)
       if (!result.ok) return []
 
-      const record = (result.data as { items?: RawRecord[] })?.items?.[0]
+      const record = result.data as RawRecord | undefined
       const items = record?.fields?.items ?? []
 
       return items

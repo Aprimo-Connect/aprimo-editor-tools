@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Expander } from "aprimo-js"
+import type { Record as AprimoRecord, File as AprimoFile, FileVersion } from "aprimo-js/model"
 import { useAprimo } from "@/context/aprimo-context"
 import { extractRecordIdFromUrl } from "@/lib/aprimo-cdn"
 import { renderFullRes } from "../lib/renderer"
@@ -119,22 +120,15 @@ export function usePublishRenditions(deps: UsePublishRenditionsDeps): Renditions
     try {
       // Fetch the record once to learn the master file + version IDs and
       // the existing additional files (so we can dedupe by label).
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const expander = (Expander.create() as any)
-        .for("Record")
-        .expand("masterfile")
-        .for("File")
-        .expand("fileversions")
-        .for("FileVersion")
-        .expand("additionalfiles")
+      const expander = Expander.create()
+        .for<AprimoRecord>("Record").expand("masterfile")
+        .for<AprimoFile>("File").expand("fileversions")
+        .for<FileVersion>("FileVersion").expand("additionalfiles")
 
-      const recordRes = await client.search.records(
-        { searchExpression: { expression: `id='${recordId}'` } },
-        expander,
-      )
+      const recordRes = await client.records.getById(recordId, expander)
       if (!recordRes.ok) throw new Error("Could not fetch source record")
 
-      const record = (recordRes.data as { items?: unknown[] })?.items?.[0] as
+      const record = recordRes.data as
         | {
             _embedded?: {
               masterfile?: {
