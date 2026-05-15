@@ -12,6 +12,12 @@ export interface NavbarProps {
   showPageHeader?: boolean
 }
 
+const ALL_FROM_ENV = !!(
+  process.env.NEXT_PUBLIC_APRIMO_ENVIRONMENT &&
+  process.env.NEXT_PUBLIC_APRIMO_CLIENT_ID &&
+  process.env.NEXT_PUBLIC_APRIMO_CLIENT_SECRET
+)
+
 export function Navbar({ showPageHeader = true }: NavbarProps = {}) {
   const { isConnected, connection } = useAprimo()
 
@@ -63,13 +69,15 @@ export function Navbar({ showPageHeader = true }: NavbarProps = {}) {
                 Disconnected
               </Badge>
             )}
-            <button
-              onClick={() => window.dispatchEvent(new Event("aprimo:open-config"))}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              title="Connections"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
+            {!ALL_FROM_ENV && isConnected && (
+              <button
+                onClick={() => window.dispatchEvent(new Event("aprimo:open-config"))}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                title="Connections"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>

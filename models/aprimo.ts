@@ -1,7 +1,7 @@
 export type AprimoField = {
   fieldName: string
   dataType?: string
-  localizedValues?: Array<{ value?: string; values?: string[] }>
+  localizedValues?: Array<{ languageId?: string; value?: string; values?: string[] }>
 }
 
 export type AprimoRecord = {

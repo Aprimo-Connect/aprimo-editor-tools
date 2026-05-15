@@ -214,7 +214,9 @@ export function AprimoConfigDialog() {
     setProfiles(updated)
   }
 
-  const formValid = !!(formEnvironment.trim() && formClientId.trim())
+  const envTrimmed = formEnvironment.trim()
+  const envAllowed = /^trial\d{3}$/.test(envTrimmed)
+  const formValid = !!(envTrimmed && formClientId.trim() && envAllowed)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -285,9 +287,29 @@ export function AprimoConfigDialog() {
                   value={formEnvironment}
                   onChange={(e) => setFormEnvironment(e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Subdomain of your Aprimo instance — <span className="font-mono">yourcompany</span> for yourcompany.dam.aprimo.com
-                </p>
+                {envTrimmed && !envAllowed ? (
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-destructive">
+                      Environment must be <span className="font-mono">trial</span> followed by exactly 3 digits (e.g. <span className="font-mono">trial123</span>).
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      For other environments, please visit the{" "}
+                      <a
+                        href="https://github.com/Aprimo-Connect/aprimo-editor-tools"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline underline-offset-2 hover:text-foreground transition-colors"
+                      >
+                        GitHub repository
+                      </a>
+                      {" "}linked in the footer — the README provides instructions for self-hosting.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Subdomain of your Aprimo instance — <span className="font-mono">yourcompany</span> for yourcompany.dam.aprimo.com
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="profile-client-id">Client ID</Label>

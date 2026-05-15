@@ -12,8 +12,12 @@ function getPreviewUri(record: AprimoRecord): string | undefined {
 
 function getFieldValue(record: AprimoRecord, fieldName: string, ctx?: FieldValueContext): string {
   const field = record._embedded?.fields?.items?.find((f) => f.fieldName === fieldName)
-  if (!field?.localizedValues?.[0]) return ""
-  const lv = field.localizedValues[0]
+  if (!field?.localizedValues?.length) return ""
+  const langId = ctx?.selectedLanguageId
+  const lv =
+    (langId && langId !== "__system__"
+      ? field.localizedValues.find((v) => v.languageId === langId)
+      : undefined) ?? field.localizedValues[0]
   if (field.dataType === "ClassificationList" && Array.isArray(lv.values)) {
     return lv.values
       .map((id) => {
