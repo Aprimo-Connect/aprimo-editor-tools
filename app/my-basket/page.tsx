@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState, Suspense } from "react"
+import { useCallback, useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
@@ -9,7 +9,6 @@ import { supabase } from "@/lib/supabase"
 import { Expander } from "aprimo-js"
 import type { Record as AprimoSDKRecord, FileVersion } from "aprimo-js/model"
 import { Button } from "@/components/ui/button"
-import { LanguagePicker } from "@/components/language-picker"
 import { LayoutGrid, List } from "lucide-react"
 import { FieldDefinitionsPanel } from "@/components/field-definitions-panel"
 import { RecordsTable } from "@/components/records-table"
@@ -28,8 +27,6 @@ function BasketExampleContent() {
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const langInitialised = useRef(false)
 
   const [fieldDefs, setFieldDefs] = useState<FieldDef[]>([])
   const [classificationsById, setClassificationsById] = useState<Map<string, ClassificationNode>>(new Map())
@@ -76,7 +73,7 @@ function BasketExampleContent() {
     loadClassifications()
   }, [isConnected, client])
 
-  const fetchRecords = useCallback(async (ids: string[], fields: string[], languageId?: string | null) => {
+  const fetchRecords = useCallback(async (ids: string[], fields: string[]) => {
     if (!client) return []
 
     const expander = Expander.create()
@@ -84,23 +81,17 @@ function BasketExampleContent() {
       .for<FileVersion>("FileVersion").expand("thumbnail", "preview")
     if (fields.length > 0) expander.selectRecordFields(...fields)
 
-    const languages: string[] | undefined = languageId && languageId !== "__system__"
-      ? [languageId]
-      : undefined
-
-    const CONCURRENCY = 10
-    const results: AprimoRecord[] = []
-    for (let i = 0; i < ids.length; i += CONCURRENCY) {
-      const chunk = ids.slice(i, i + CONCURRENCY)
-      const chunkResults = await Promise.all(
-        chunk.map((id) => client.records.getById(id, expander, languages))
-      )
-      const failed = chunkResults.filter((r) => !r.ok)
-      if (failed.length) throw new Error(failed.map((r) => r.error?.message ?? "Fetch failed").join(", "))
-      results.push(...chunkResults.map((r) => r.data as unknown as AprimoRecord))
-    }
-
-    return results
+    const BATCH = 50
+    const batches = Array.from({ length: Math.ceil(ids.length / BATCH) }, (_, i) =>
+      ids.slice(i * BATCH, i * BATCH + BATCH)
+    )
+    const batchResults = await Promise.all(
+      batches.map((batch) => {
+        const expression = batch.map((id) => `id='${id}'`).join(" OR ")
+        return client.search.records({ searchExpression: { expression } }, expander)
+      })
+    )
+    return batchResults.flatMap((r) => ((r.data as unknown as { items?: AprimoRecord[] })?.items ?? []))
   }, [client])
 
   useEffect(() => {
@@ -128,7 +119,7 @@ function BasketExampleContent() {
       await supabase.from("requested_records").delete().eq("requestId", requestId)
 
       try {
-        const fetched = await fetchRecords(row.recordList, [], selectedLanguageId)
+        const fetched = await fetchRecords(row.recordList, [])
         setRecords(fetched)
       } catch (err) {
         setError(err instanceof Error ? err.message : "Search failed")
@@ -139,22 +130,6 @@ function BasketExampleContent() {
 
     load()
   }, [requestId, isConnected, client, fetchRecords])
-
-  useEffect(() => {
-    if (!selectedLanguageId) return
-    if (!langInitialised.current) {
-      langInitialised.current = true
-      return
-    }
-    if (!recordIds.length) return
-
-    setLoading(true)
-    setError(null)
-    fetchRecords(recordIds, tableFields, selectedLanguageId)
-      .then(setRecords)
-      .catch((err) => setError(err instanceof Error ? err.message : "Reload failed"))
-      .finally(() => setLoading(false))
-  }, [selectedLanguageId])
 
   function toggleField(name: string) {
     setSelectedFields((prev) => {
@@ -170,7 +145,7 @@ function BasketExampleContent() {
     setError(null)
     try {
       const fields = Array.from(selectedFields)
-      const fetched = await fetchRecords(recordIds, fields, selectedLanguageId)
+      const fetched = await fetchRecords(recordIds, fields)
       setRecords(fetched)
       await exportToExcel(fetched, fields, fieldDefs, { classificationsById, optionItemsByField, selectedLanguageId })
     } catch (err) {
@@ -179,11 +154,6 @@ function BasketExampleContent() {
       setExporting(false)
     }
   }
-
-  const fetchRecordsForPanel = useCallback(
-    (ids: string[], fields: string[]) => fetchRecords(ids, fields, selectedLanguageId),
-    [fetchRecords, selectedLanguageId]
-  )
 
   const ctx = { classificationsById, optionItemsByField, selectedLanguageId }
 
@@ -204,7 +174,7 @@ function BasketExampleContent() {
         tableFields={tableFields}
         toggleField={toggleField}
         recordIds={recordIds}
-        fetchRecords={fetchRecordsForPanel}
+        fetchRecords={fetchRecords}
         setRecords={setRecords}
         setTableFields={setTableFields}
         setError={setError}
@@ -224,7 +194,6 @@ function BasketExampleContent() {
               {requestedCount !== null && ` (${requestedCount} requested)`}
             </p>
             <div className="flex items-center gap-2">
-              <LanguagePicker />
               {viewMode === "grid" && (
                 <>
                   <Button

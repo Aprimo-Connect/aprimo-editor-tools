@@ -14,6 +14,8 @@ const ENV_CLIENT_ID = process.env.NEXT_PUBLIC_APRIMO_CLIENT_ID ?? ""
 const ENV_CLIENT_SECRET = process.env.NEXT_PUBLIC_APRIMO_CLIENT_SECRET ?? ""
 const ALL_FROM_ENV = !!(ENV_ENVIRONMENT && ENV_CLIENT_ID && ENV_CLIENT_SECRET)
 
+const ENV_ALLOWED_ENV_PATTERN = process.env.NEXT_PUBLIC_APRIMO_ENV_PATTERN ?? "^trial\\d{3}$"
+
 const ENV_VS_CONTENT_TYPE = process.env.NEXT_PUBLIC_VIDEO_STUDIO_CONTENT_TYPE ?? ""
 const ENV_VS_CLASSIFICATION_ID = process.env.NEXT_PUBLIC_VIDEO_STUDIO_CLASSIFICATION_ID ?? ""
 const ENV_VS_JSON_FIELD = process.env.NEXT_PUBLIC_VIDEO_STUDIO_JSON_FIELD ?? ""
@@ -215,7 +217,7 @@ export function AprimoConfigDialog() {
   }
 
   const envTrimmed = formEnvironment.trim()
-  const envAllowed = /^trial\d{3}$/.test(envTrimmed)
+  const envAllowed = new RegExp(ENV_ALLOWED_ENV_PATTERN).test(envTrimmed)
   const formValid = !!(envTrimmed && formClientId.trim() && envAllowed)
 
   return (
@@ -290,7 +292,7 @@ export function AprimoConfigDialog() {
                 {envTrimmed && !envAllowed ? (
                   <div className="space-y-0.5">
                     <p className="text-xs text-destructive">
-                      Environment must be <span className="font-mono">trial</span> followed by exactly 3 digits (e.g. <span className="font-mono">trial123</span>).
+                      Environment does not match the required pattern (<span className="font-mono">{ENV_ALLOWED_ENV_PATTERN}</span>).
                     </p>
                     <p className="text-xs text-muted-foreground">
                       For other environments, please visit the{" "}
