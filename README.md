@@ -240,6 +240,16 @@ NEXT_PUBLIC_APRIMO_CLIENT_SECRET=your-client-secret
 
 The action name in Aprimo maps to a key in that file. The record or basket ID is forwarded as a query parameter.
 
+| Action | Mode | Tool |
+|--------|------|------|
+| `mybasket` | Multi-record (basket) | My Basket |
+| `myitem` | Single-record | My Item |
+| `videoresizer` | Single-record | Video Resizer |
+| `videostudiobasket` | Multi-record (basket) | Video Studio |
+| `videostudio` | Single-record | Video Studio — opens an existing project |
+| `templatesbasket` | Multi-record (basket) | Dynamic Content |
+| `templates` | Single-record | Dynamic Content |
+
 ## Getting Started
 
 ### 1. Set up Supabase
@@ -293,7 +303,7 @@ This app requires a **PKCE OAuth registration** in your Aprimo environment.
 
 ### 5. Register page hooks (optional)
 
-To enable the My Basket, My Item, and Video Studio flows, register page hooks in Aprimo pointing to `/api/webhook`. Add your action-to-URL mappings in [`app/api/webhook/actions.json`](app/api/webhook/actions.json).
+To enable the My Basket, My Item, Video Resizer, and Video Studio flows, register page hooks in Aprimo pointing to `/api/webhook`. Add your action-to-URL mappings in [`app/api/webhook/actions.json`](app/api/webhook/actions.json).
 
 ### 6. Set up action definitions and menus in Aprimo (optional)
 
