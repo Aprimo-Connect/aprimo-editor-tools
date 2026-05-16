@@ -217,7 +217,7 @@ The app authenticates automatically on page load:
 - **Without env vars** — auto-connects on every page except the home page using the saved profile. If multiple profiles exist the selection modal is shown; if none exist the add-profile form is shown.
 
 ```
-NEXT_PUBLIC_APRIMO_ENVIRONMENT=yourcompany
+NEXT_PUBLIC_APRIMO_ENVIRONMENT=your-environment
 NEXT_PUBLIC_APRIMO_CLIENT_ID=your-client-id
 NEXT_PUBLIC_APRIMO_CLIENT_SECRET=your-client-secret
 ```
@@ -272,8 +272,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 # Webhook secret — must match the secret configured in Aprimo's page hook settings
 WEBHOOK_SECRET=your-webhook-secret
 
-# Aprimo (optional — can also be entered via the in-app Connect modal)
-NEXT_PUBLIC_APRIMO_ENVIRONMENT=yourcompany
+# Aprimo (optional — trial environments can enter these via the in-app Connect modal instead)
+NEXT_PUBLIC_APRIMO_ENVIRONMENT=your-environment
 NEXT_PUBLIC_APRIMO_CLIENT_ID=your-client-id
 NEXT_PUBLIC_APRIMO_CLIENT_SECRET=your-client-secret
 

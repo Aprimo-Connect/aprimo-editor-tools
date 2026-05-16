@@ -284,7 +284,7 @@ export function AprimoConfigDialog() {
                 <Label htmlFor="profile-environment">Environment</Label>
                 <Input
                   id="profile-environment"
-                  placeholder="yourcompany"
+                  placeholder="yourtrial"
                   value={formEnvironment}
                   onChange={(e) => setFormEnvironment(e.target.value)}
                 />
