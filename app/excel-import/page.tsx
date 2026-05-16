@@ -336,6 +336,12 @@ export default function ExcelImportPage() {
             return [{ id: def.id, localizedValues: [{ languageId, values: ids }] }]
           }
 
+          if (def.dataType.includes("TextList")) {
+            const vals = rawValue.split(";").map((v) => v.trim()).filter(Boolean)
+            if (!vals.length) return []
+            return [{ id: def.id, localizedValues: [{ languageId, values: vals }] }]
+          }
+
           if (!rawValue) return []
           return [{ id: def.id, localizedValues: [{ languageId, value: rawValue }] }]
         })
@@ -491,7 +497,7 @@ export default function ExcelImportPage() {
                               </SelectTrigger>
                               <SelectContent>
                                 {fieldDefs.map((d) => {
-                                  const tested = ["SingleLineText", "MultiLineText", "ClassificationList", "Numeric"].includes(d.dataType)
+                                  const tested = ["SingleLineText", "MultiLineText", "ClassificationList", "Numeric", "TextList"].includes(d.dataType)
                                   return (
                                     <SelectItem key={d.id} value={d.name} className="text-xs" disabled={!!d.isReadOnly}>
                                       <span className="flex items-center gap-2">
