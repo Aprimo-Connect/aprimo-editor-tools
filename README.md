@@ -259,6 +259,9 @@ Copy `.env.local.example` to `.env.local` and fill in the values:
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
+# Webhook secret — must match the secret configured in Aprimo's page hook settings
+WEBHOOK_SECRET=your-webhook-secret
+
 # Aprimo (optional — can also be entered via the in-app Connect modal)
 NEXT_PUBLIC_APRIMO_ENVIRONMENT=yourcompany
 NEXT_PUBLIC_APRIMO_CLIENT_ID=your-client-id
@@ -286,7 +289,7 @@ This app requires a **PKCE OAuth registration** in your Aprimo environment.
    - **Grant type:** Authorization Code with PKCE
    - **Redirect URI:** `https://<your-site>.vercel.app/oauth/callback` (or `http://localhost:3000/oauth/callback` for local development)
 2. Note the **Client ID** and **Client Secret** from the registration.
-3. Open the app and click **Connect**, then enter your environment subdomain, Client ID, and Client Secret — or set the `NEXT_PUBLIC_APRIMO_*` environment variables above to skip the modal.
+3. Set the `NEXT_PUBLIC_APRIMO_*` environment variables above — the app will auto-connect on every page without showing a modal. If you are on a `trial\d{3}` environment (e.g. `trial123`) you can alternatively click **Connect** and enter your credentials directly in the modal.
 
 ### 5. Register page hooks (optional)
 
