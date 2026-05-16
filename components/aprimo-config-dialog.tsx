@@ -308,7 +308,7 @@ export function AprimoConfigDialog() {
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Subdomain of your Aprimo instance — <span className="font-mono">yourcompany</span> for yourcompany.dam.aprimo.com
+                    Subdomain of your Aprimo trial instance — <span className="font-mono">trial123</span> for trial123.dam.aprimo.com
                   </p>
                 )}
               </div>
