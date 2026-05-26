@@ -22,11 +22,24 @@ export default function Home() {
               : "Connect to your Aprimo environment to get started. This application requires PKCE auth."}
           </p>
           {!isConnected && (
-            <Button
-              onClick={() => window.dispatchEvent(new Event("aprimo:open-config"))}
-            >
-              Connect to Aprimo
-            </Button>
+            <div className="space-y-4">
+              <Button
+                onClick={() => window.dispatchEvent(new Event("aprimo:open-config"))}
+              >
+                Connect to Aprimo
+              </Button>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                This hosted version is intended for demo use with Aprimo trial environments. Using a non-trial environment?{" "}
+                <a
+                  href="https://github.com/Aprimo-Connect/aprimo-editor-tools"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-foreground transition-colors"
+                >
+                  Self-host</a> and set your environment variables for all users.
+                
+              </p>
+            </div>
           )}
           {isConnected && (
             <div className="grid gap-4 sm:grid-cols-2">

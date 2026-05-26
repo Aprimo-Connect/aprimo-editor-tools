@@ -15,7 +15,7 @@ Upload assets to Aprimo with metadata in bulk.
 - Drag-and-drop or browse to select multiple files
 - Define shared fields whose values apply to every asset in the batch
 - Override fields per asset where values differ
-- Supports text, multi-line text, date, and classification field types
+- Supports single-line text, multi-line text, numeric, and classification field types
 - Tracks upload progress and reports per-asset success or failure
 
 ### My Basket
