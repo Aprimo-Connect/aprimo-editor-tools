@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { ChevronsUpDown, Check, X } from "lucide-react"
+import { useState, useEffect } from "react"
+import { ChevronsUpDown, Check, X, Copy, ClipboardPaste } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -216,6 +216,19 @@ interface RecordsTableEditableProps {
   onEdit: (recordId: string, fieldName: string, value: EditValue) => void
 }
 
+interface Clipboard {
+  recordId: string
+  fieldName: string
+  dataType: string
+  value: EditValue
+}
+
+interface DragFill {
+  fieldName: string
+  startIndex: number
+  currentIndex: number
+}
+
 export function RecordsTableEditable({
   records,
   tableFields,
@@ -225,8 +238,48 @@ export function RecordsTableEditable({
   edits,
   onEdit,
 }: RecordsTableEditableProps) {
+  const [clipboard, setClipboard] = useState<Clipboard | null>(null)
+  const [drag, setDrag] = useState<DragFill | null>(null)
+
+  const cellValue = (record: AprimoRecord, def: FieldDef): EditValue =>
+    edits[record.id]?.[def.name] ?? getRawValue(record, def.name, ctx.selectedLanguageId)
+
+  // Paste needs matching type; classification/option ids are field-scoped, so
+  // those additionally require the same field.
+  const canPaste = (def: FieldDef): boolean => {
+    if (!clipboard || clipboard.dataType !== def.dataType) return false
+    if ((def.dataType === "ClassificationList" || def.dataType === "OptionList") && clipboard.fieldName !== def.name) return false
+    return true
+  }
+
+  // Commit an Excel-style drag-fill: copy the source cell's value to every
+  // cell in the dragged range (excluding the source itself).
+  useEffect(() => {
+    if (!drag) return
+    const onUp = () => {
+      const def = fieldDefs.find((d) => d.name === drag.fieldName)
+      if (def) {
+        const value = cellValue(records[drag.startIndex], def)
+        const lo = Math.min(drag.startIndex, drag.currentIndex)
+        const hi = Math.max(drag.startIndex, drag.currentIndex)
+        for (let i = lo; i <= hi; i++) {
+          if (i !== drag.startIndex) onEdit(records[i].id, def.name, value)
+        }
+      }
+      setDrag(null)
+    }
+    window.addEventListener("mouseup", onUp)
+    return () => window.removeEventListener("mouseup", onUp)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drag])
+
+  const inFillRange = (fieldName: string, index: number): boolean =>
+    !!drag && drag.fieldName === fieldName &&
+    index >= Math.min(drag.startIndex, drag.currentIndex) &&
+    index <= Math.max(drag.startIndex, drag.currentIndex)
+
   return (
-    <table className="mt-4 w-full text-sm border-collapse">
+    <table className={`mt-4 w-full text-sm border-collapse ${drag ? "select-none" : ""}`}>
       <thead>
         <tr className="border-b text-left">
           <th className="pb-2 pr-4 font-medium w-20"></th>
@@ -241,7 +294,7 @@ export function RecordsTableEditable({
         </tr>
       </thead>
       <tbody>
-        {records.map((record) => (
+        {records.map((record, rowIndex) => (
           <tr key={record.id} className="border-b last:border-0 align-top">
             <td className="py-2 pr-4">
               {getThumbnailUri(record)
@@ -254,8 +307,15 @@ export function RecordsTableEditable({
             {tableFields.map((f) => {
               const def = fieldDefs.find((d) => d.name === f)
               const edited = edits[record.id]?.[f] !== undefined
+              const editable = def && !def.isReadOnly
+              const isClipboardSource = clipboard?.recordId === record.id && clipboard?.fieldName === f
+              const filling = inFillRange(f, rowIndex)
               return (
-                <td key={f} className={`py-2 pr-4 ${edited ? "bg-yellow-100/60 dark:bg-yellow-900/30" : ""}`}>
+                <td
+                  key={f}
+                  onMouseEnter={() => { if (drag && drag.fieldName === f) setDrag({ ...drag, currentIndex: rowIndex }) }}
+                  className={`group relative py-2 pr-4 ${edited ? "bg-yellow-100/60 dark:bg-yellow-900/30" : ""} ${isClipboardSource ? "ring-1 ring-inset ring-primary" : ""} ${filling ? "ring-1 ring-inset ring-primary/70 bg-primary/5" : ""}`}
+                >
                   {def
                     ? <EditableCell
                         record={record}
@@ -266,6 +326,32 @@ export function RecordsTableEditable({
                         onChange={(value) => onEdit(record.id, f, value)}
                       />
                     : "-"}
+                  {editable && (
+                    <div className="absolute bottom-1 left-1 z-10 hidden items-center gap-0.5 rounded border bg-background/95 p-0.5 shadow-sm group-hover:flex">
+                      <button
+                        title="Copy cell"
+                        onClick={() => setClipboard({ recordId: record.id, fieldName: def!.name, dataType: def!.dataType, value: cellValue(record, def!) })}
+                        className="rounded p-0.5 hover:bg-muted"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </button>
+                      <button
+                        title={canPaste(def!) ? "Paste into cell" : "Copy a compatible cell first"}
+                        disabled={!canPaste(def!)}
+                        onClick={() => clipboard && onEdit(record.id, def!.name, clipboard.value)}
+                        className="rounded p-0.5 hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent"
+                      >
+                        <ClipboardPaste className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+                  {editable && (
+                    <div
+                      title="Drag to fill down"
+                      onMouseDown={(e) => { e.preventDefault(); setDrag({ fieldName: f, startIndex: rowIndex, currentIndex: rowIndex }) }}
+                      className="absolute bottom-0.5 right-0.5 z-10 h-2 w-2 cursor-ns-resize rounded-[1px] bg-primary opacity-0 group-hover:opacity-100"
+                    />
+                  )}
                 </td>
               )
             })}
