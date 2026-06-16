@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -22,8 +23,6 @@ interface FieldDefinitionsPanelProps {
   setRecords: (records: AprimoRecord[]) => void
   setTableFields: (fields: string[]) => void
   setError: (error: string | null) => void
-  exporting: boolean
-  onExport: () => void
 }
 
 export function FieldDefinitionsPanel({
@@ -36,12 +35,11 @@ export function FieldDefinitionsPanel({
   setRecords,
   setTableFields,
   setError,
-  exporting,
-  onExport,
 }: FieldDefinitionsPanelProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [showReadOnly, setShowReadOnly] = useState(false)
+  const [activeTab, setActiveTab] = useState("__all__")
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -62,7 +60,31 @@ export function FieldDefinitionsPanel({
     [filtered]
   )
 
+  // If filtering removes the active type's tab, fall back to "All".
+  useEffect(() => {
+    if (activeTab !== "__all__" && !grouped.some(([dt]) => dt === activeTab)) {
+      setActiveTab("__all__")
+    }
+  }, [grouped, activeTab])
+
   const selectedDefs = fieldDefs.filter((d) => selectedFields.has(d.name))
+
+  const renderFieldGrid = (defs: FieldDef[]) => (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+      {defs.map((def) => (
+        <div key={def.id} className="flex items-center gap-2">
+          <Checkbox
+            id={def.id}
+            checked={selectedFields.has(def.name)}
+            onCheckedChange={() => toggleField(def.name)}
+          />
+          <Label htmlFor={def.id} className="text-xs cursor-pointer truncate leading-tight" title={def.label || def.name}>
+            {def.label || def.name}
+          </Label>
+        </div>
+      ))}
+    </div>
+  )
 
   const selectionChanged = useMemo(() => {
     const applied = new Set(tableFields)
@@ -86,8 +108,14 @@ export function FieldDefinitionsPanel({
   }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="mb-6 border rounded-lg print:hidden">
-      <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium">
+    <Collapsible open={open} onOpenChange={setOpen} className="relative mb-6 print:hidden">
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/10"
+          onClick={() => setOpen(false)}
+        />
+      )}
+      <CollapsibleTrigger className="relative z-50 flex w-full items-center justify-between rounded-lg border bg-background px-4 py-3 text-sm font-medium">
         <span className="flex items-center gap-2">
           Field Definitions
           <Badge variant="secondary" className="text-xs font-normal">{fieldDefs.length}</Badge>
@@ -98,8 +126,8 @@ export function FieldDefinitionsPanel({
         {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </CollapsibleTrigger>
 
-      <CollapsibleContent>
-        <div className="border-t px-4 pt-3 pb-2 space-y-3">
+      <CollapsibleContent className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border bg-background shadow-lg">
+        <div className="px-4 pt-3 pb-2 space-y-3">
 
           {/* Search + read-only toggle */}
           <div className="flex items-center gap-3">
@@ -150,33 +178,42 @@ export function FieldDefinitionsPanel({
           )}
         </div>
 
-        {/* Field list */}
-        <ScrollArea className="h-96 border-t px-4 py-3">
-          {grouped.length === 0 && (
+        {/* Field list — one tab per data type */}
+        {grouped.length === 0 ? (
+          <div className="border-t px-4 py-3">
             <p className="text-sm text-muted-foreground text-center py-6">No fields match "{search}"</p>
-          )}
-          {grouped.map(([dataType, defs]) => (
-            <div key={dataType} className="mb-4">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                {dataType}
-              </p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                {defs.map((def) => (
-                  <div key={def.id} className="flex items-center gap-2">
-                    <Checkbox
-                      id={def.id}
-                      checked={selectedFields.has(def.name)}
-                      onCheckedChange={() => toggleField(def.name)}
-                    />
-                    <Label htmlFor={def.id} className="text-xs cursor-pointer truncate leading-tight" title={def.label || def.name}>
-                      {def.label || def.name}
-                    </Label>
+          </div>
+        ) : (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="border-t gap-0">
+            <div className="px-4 pt-3">
+              <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+                <TabsTrigger value="__all__" className="text-xs">All</TabsTrigger>
+                {grouped.map(([dataType, defs]) => (
+                  <TabsTrigger key={dataType} value={dataType} className="text-xs">
+                    {dataType} ({defs.length})
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
+            <ScrollArea className="h-96 px-4 py-3">
+              <TabsContent value="__all__" className="mt-0">
+                {grouped.map(([dataType, defs]) => (
+                  <div key={dataType} className="mb-4">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                      {dataType}
+                    </p>
+                    {renderFieldGrid(defs)}
                   </div>
                 ))}
-              </div>
-            </div>
-          ))}
-        </ScrollArea>
+              </TabsContent>
+              {grouped.map(([dataType, defs]) => (
+                <TabsContent key={dataType} value={dataType} className="mt-0">
+                  {renderFieldGrid(defs)}
+                </TabsContent>
+              ))}
+            </ScrollArea>
+          </Tabs>
+        )}
 
         <div className="border-t px-4 py-3 flex items-center justify-end gap-2">
           <Button
@@ -186,13 +223,6 @@ export function FieldDefinitionsPanel({
             disabled={!recordIds.length || !selectionChanged}
           >
             Update Table
-          </Button>
-          <Button
-            size="sm"
-            onClick={onExport}
-            disabled={exporting || !recordIds.length}
-          >
-            {exporting ? "Exporting…" : "Export to Excel"}
           </Button>
         </div>
       </CollapsibleContent>

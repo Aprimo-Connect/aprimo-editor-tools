@@ -9,6 +9,7 @@ const routeLabels: Record<string, string> = {
   "bulk-upload": "Bulk Upload",
   "my-item": "My Item",
   "my-basket": "My Basket",
+  "basket-editor": "Basket Editor",
   "video-resizer": "Video Resizer",
   "video-studio": "Video Studio",
 }

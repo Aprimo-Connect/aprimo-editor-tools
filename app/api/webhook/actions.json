@@ -7,6 +7,7 @@
   "videostudiobasket": "https://aprimo-editor-tools.vercel.app/video-studio",
   "templates": "https://aprimo-editor-tools.vercel.app/templates",
   "templatesbasket": "https://aprimo-editor-tools.vercel.app/templates",
+  "basketeditor": "https://aprimo-editor-tools.vercel.app/basket-editor",
 
   "basketexamplelocal": "http://localhost:3000/my-basket",
   "mybasketlocal": "http://localhost:3000/my-basket",
@@ -15,5 +16,6 @@
   "videostudiolocal": "http://localhost:3000/video-studio",
   "videostudiobasketlocal": "http://localhost:3000/video-studio",
   "templateslocal": "http://localhost:3000/templates",
-  "templatesbasketlocal": "http://localhost:3000/templates"
+  "templatesbasketlocal": "http://localhost:3000/templates",
+  "basketeditorlocal": "http://localhost:3000/basket-editor"
 }

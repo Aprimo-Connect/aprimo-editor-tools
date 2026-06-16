@@ -178,8 +178,6 @@ function BasketExampleContent() {
         setRecords={setRecords}
         setTableFields={setTableFields}
         setError={setError}
-        exporting={exporting}
-        onExport={handleFetchAndExport}
       />
 
       {loading && <p className="text-sm text-muted-foreground">Loading records...</p>}
@@ -194,6 +192,15 @@ function BasketExampleContent() {
               {requestedCount !== null && ` (${requestedCount} requested)`}
             </p>
             <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs px-2"
+                onClick={handleFetchAndExport}
+                disabled={exporting || !recordIds.length}
+              >
+                {exporting ? "Exporting…" : "Export to Excel"}
+              </Button>
               {viewMode === "grid" && (
                 <>
                   <Button
