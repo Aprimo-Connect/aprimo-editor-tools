@@ -25,6 +25,23 @@ function splitOptionCell(raw: string, acceptMultiple: boolean): string[] {
   return raw.split(";").map((s) => s.trim()).filter(Boolean)
 }
 
+// Format a date/time value for the target field type. Aprimo expects
+// Date as yyyy-MM-dd, DateTime as ISO 8601, and Time as HH:mm:ss. Values
+// coming from Excel date cells are already ISO; typed strings are parsed
+// best-effort and passed through unchanged if unparseable.
+function formatDateForField(raw: string, dataType: string): string {
+  const d = new Date(raw.trim())
+  if (isNaN(d.getTime())) return raw
+  const pad = (n: number) => String(n).padStart(2, "0")
+  if (dataType === "Date") {
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`
+  }
+  if (dataType === "Time") {
+    return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`
+  }
+  return d.toISOString()
+}
+
 interface ParsedFile {
   headers: string[]
   columnValues: Record<string, string[]>
@@ -56,7 +73,10 @@ async function parseFile(file: File): Promise<ParsedFile> {
     if (rowNumber === 1) return
     const record: Record<string, string> = {}
     for (const [h, colIdx] of Object.entries(colIndexByHeader)) {
-      const val = String(row.getCell(colIdx).value ?? "").trim()
+      const cellVal = row.getCell(colIdx).value
+      // ExcelJS returns date cells as JS Date objects; keep them as ISO 8601
+      // so they can be reformatted per target field type at save time.
+      const val = (cellVal instanceof Date ? cellVal.toISOString() : String(cellVal ?? "")).trim()
       record[h] = val
       if (val) valueSets[h].add(val)
     }
@@ -419,6 +439,11 @@ export default function ExcelImportPage() {
             return [{ id: def.id, localizedValues: [{ languageId, values: vals }] }]
           }
 
+          if (["Date", "DateTime", "Time"].includes(def.dataType)) {
+            if (!rawValue) return []
+            return [{ id: def.id, localizedValues: [{ languageId, value: formatDateForField(rawValue, def.dataType) }] }]
+          }
+
           if (!rawValue) return []
           return [{ id: def.id, localizedValues: [{ languageId, value: rawValue }] }]
         })
@@ -574,7 +599,7 @@ export default function ExcelImportPage() {
                               </SelectTrigger>
                               <SelectContent>
                                 {fieldDefs.map((d) => {
-                                  const tested = ["SingleLineText", "MultiLineText", "ClassificationList", "Numeric", "TextList", "OptionList"].includes(d.dataType)
+                                  const tested = ["SingleLineText", "MultiLineText", "ClassificationList", "Numeric", "TextList", "OptionList", "Html", "Date", "DateTime", "Time"].includes(d.dataType)
                                   return (
                                     <SelectItem key={d.id} value={d.name} className="text-xs" disabled={!!d.isReadOnly}>
                                       <span className="flex items-center gap-2">
