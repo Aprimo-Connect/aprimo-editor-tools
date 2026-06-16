@@ -28,6 +28,23 @@ Renders the contents of an Aprimo basket. Triggered via Aprimo page hook — rec
 
 Webhook action: `mybasket` (default multi-record mode — no `&mode=singleitem`).
 
+### Basket Editor
+
+An editable, spreadsheet-style view of an Aprimo basket. Like My Basket, it is triggered via Aprimo page hook — record IDs are stored in Supabase and a handle is forwarded to the page. Pick the fields to show, edit their values inline, and save changes back to Aprimo in bulk.
+
+| Parameter | Source | Description |
+|-----------|--------|-------------|
+| `requestId` | Webhook (multi-record mode) | UUID handle used to fetch the record list from Supabase |
+
+Webhook action: `basketeditor` (default multi-record mode — no `&mode=singleitem`).
+
+- Choose visible columns from the **Field Definitions** panel (tabbed by data type)
+- Cells display formatted values and become editable on click — text, multi-line text (textarea), HTML, numeric, date, text list, classification, and option-list fields
+- Classification / option values are edited with the same searchable single/multi pickers used elsewhere
+- **Copy / paste** a cell's value and **drag-fill** down a column, spreadsheet-style
+- Edited cells are highlighted; a single **Save changes** button writes all changed records via `records.update()` and reports per-record success / failure
+- Pick the **Save language** for localized field values, and **Export to Excel** the displayed columns
+
 ### My Item
 
 Displays a single Aprimo record. Triggered via Aprimo page hook — the record ID is passed directly as a query parameter.
@@ -193,7 +210,10 @@ Import metadata from an Excel file into Aprimo records.
 
 - Upload an `.xlsx` / `.xls` file and select which columns to map
 - Map Excel columns to Aprimo field definitions (auto-matched by name)
-- Map classification values from the spreadsheet to Aprimo classifications
+- Map classification and option-list values from the spreadsheet to Aprimo values (auto-matched by name/label; option lists honor the field's single- vs multi-select setting)
+- Supports single-line / multi-line text, HTML, numeric, date / time, text list, classification, and option-list fields
+- Date cells are normalized to the format each field type expects (`yyyy-MM-dd`, ISO 8601, or `HH:mm:ss`)
+- **View contents** — preview the parsed sheet in a dialog; classification / option values that need manual matching are highlighted
 - Choose the target language for localized field values
 - Saves to Aprimo using `records.update()` with built-in rate-limit handling
 
@@ -229,6 +249,7 @@ NEXT_PUBLIC_APRIMO_CLIENT_SECRET=your-client-secret
 ```json
 {
   "mybasket":           "https://your-deployment.vercel.app/my-basket",
+  "basketeditor":       "https://your-deployment.vercel.app/basket-editor",
   "myitem":             "https://your-deployment.vercel.app/my-item",
   "videoresizer":       "https://your-deployment.vercel.app/video-resizer",
   "videostudiobasket":  "https://your-deployment.vercel.app/video-studio",
@@ -243,6 +264,7 @@ The action name in Aprimo maps to a key in that file. The record or basket ID is
 | Action | Mode | Tool |
 |--------|------|------|
 | `mybasket` | Multi-record (basket) | My Basket |
+| `basketeditor` | Multi-record (basket) | Basket Editor |
 | `myitem` | Single-record | My Item |
 | `videoresizer` | Single-record | Video Resizer |
 | `videostudiobasket` | Multi-record (basket) | Video Studio |

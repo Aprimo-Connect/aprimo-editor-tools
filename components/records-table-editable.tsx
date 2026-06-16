@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { ChevronsUpDown, Check, X, Copy, ClipboardPaste } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
@@ -35,7 +36,16 @@ export function getRawValue(record: AprimoRecord, fieldName: string, langId?: st
 function displayValue(def: FieldDef, v: EditValue, ctx: FieldValueContext): string {
   if (v.values) {
     if (def.dataType === "ClassificationList") {
-      return v.values.map((id) => ctx.classificationsById?.get(id)?.labelPath || id).join(", ")
+      return v.values.map((id) => {
+        const node = ctx.classificationsById?.get(id)
+        if (!node) return id
+        const langId = ctx.selectedLanguageId
+        if (langId && langId !== "__system__") {
+          const localized = node.labels?.find((l) => l.languageId === langId)?.value
+          if (localized) return localized
+        }
+        return node.name || node.labelPath || id
+      }).join(", ")
     }
     if (def.dataType === "OptionList") {
       const items = ctx.optionItemsByField?.get(def.name)
@@ -54,6 +64,8 @@ function MultiSelectCell({
   onChange,
   placeholder = "Select…",
   searchPlaceholder = "Search…",
+  autoOpen = false,
+  onClose,
 }: {
   options: FlatNode[]
   valueIds: string[]
@@ -61,23 +73,30 @@ function MultiSelectCell({
   onChange: (ids: string[]) => void
   placeholder?: string
   searchPlaceholder?: string
+  autoOpen?: boolean
+  onClose?: () => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(autoOpen)
   const selected = new Set(valueIds)
   const labelFor = (id: string) => options.find((o) => o.id === id)?.label ?? id
+
+  function setOpenState(o: boolean) {
+    setOpen(o)
+    if (!o) onClose?.()
+  }
 
   function toggle(id: string) {
     if (acceptMultiple) {
       onChange(selected.has(id) ? valueIds.filter((v) => v !== id) : [...valueIds, id])
     } else {
       onChange(selected.has(id) ? [] : [id])
-      setOpen(false)
+      setOpenState(false)
     }
   }
 
   return (
     <div className="space-y-1">
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={setOpenState}>
         <PopoverTrigger asChild>
           <Button variant="outline" role="combobox" className="h-7 w-full min-w-44 justify-between text-xs font-normal">
             <span className="truncate">
@@ -135,6 +154,7 @@ function EditableCell({
   classifications,
   edit,
   onChange,
+  onExit,
 }: {
   record: AprimoRecord
   def: FieldDef
@@ -142,13 +162,14 @@ function EditableCell({
   classifications: ClassificationNode[]
   edit: EditValue | undefined
   onChange: (value: EditValue) => void
+  onExit: () => void
 }) {
   const langId = ctx.selectedLanguageId
   const current = edit ?? getRawValue(record, def.name, langId)
   const pickerLang = langId && langId !== "__system__" ? langId : undefined
 
-  if (def.isReadOnly) {
-    return <span className="text-muted-foreground text-xs">{displayValue(def, current, ctx) || "-"}</span>
+  const onInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === "Escape") (e.target as HTMLInputElement).blur()
   }
 
   if (def.dataType === "ClassificationList") {
@@ -164,6 +185,8 @@ function EditableCell({
         onChange={(ids) => onChange({ values: ids })}
         placeholder="Select classification…"
         searchPlaceholder="Search classifications…"
+        autoOpen
+        onClose={onExit}
       />
     )
   }
@@ -179,6 +202,8 @@ function EditableCell({
         onChange={(ids) => onChange({ values: ids })}
         placeholder="Select option…"
         searchPlaceholder="Search options…"
+        autoOpen
+        onClose={onExit}
       />
     )
   }
@@ -186,6 +211,9 @@ function EditableCell({
   if (def.dataType.includes("TextList")) {
     return (
       <Input
+        autoFocus
+        onBlur={onExit}
+        onKeyDown={onInputKeyDown}
         className="h-7 text-xs min-w-44"
         value={(current.values ?? []).join("; ")}
         placeholder="value; value"
@@ -194,10 +222,27 @@ function EditableCell({
     )
   }
 
+  if (def.dataType === "MultiLineText") {
+    return (
+      <Textarea
+        autoFocus
+        onBlur={onExit}
+        onKeyDown={(e) => { if (e.key === "Escape") (e.target as HTMLTextAreaElement).blur() }}
+        rows={4}
+        className="min-w-56 text-xs"
+        value={current.value ?? ""}
+        onChange={(e) => onChange({ value: e.target.value })}
+      />
+    )
+  }
+
   const inputType =
     def.dataType === "Numeric" ? "number" : def.dataType === "Date" ? "date" : "text"
   return (
     <Input
+      autoFocus
+      onBlur={onExit}
+      onKeyDown={onInputKeyDown}
       type={inputType}
       className="h-7 text-xs min-w-44"
       value={current.value ?? ""}
@@ -240,6 +285,7 @@ export function RecordsTableEditable({
 }: RecordsTableEditableProps) {
   const [clipboard, setClipboard] = useState<Clipboard | null>(null)
   const [drag, setDrag] = useState<DragFill | null>(null)
+  const [editing, setEditing] = useState<{ recordId: string; fieldName: string } | null>(null)
 
   const cellValue = (record: AprimoRecord, def: FieldDef): EditValue =>
     edits[record.id]?.[def.name] ?? getRawValue(record, def.name, ctx.selectedLanguageId)
@@ -308,6 +354,7 @@ export function RecordsTableEditable({
               const def = fieldDefs.find((d) => d.name === f)
               const edited = edits[record.id]?.[f] !== undefined
               const editable = def && !def.isReadOnly
+              const isEditing = editing?.recordId === record.id && editing?.fieldName === f
               const isClipboardSource = clipboard?.recordId === record.id && clipboard?.fieldName === f
               const filling = inFillRange(f, rowIndex)
               return (
@@ -316,17 +363,25 @@ export function RecordsTableEditable({
                   onMouseEnter={() => { if (drag && drag.fieldName === f) setDrag({ ...drag, currentIndex: rowIndex }) }}
                   className={`group relative py-2 pr-4 ${edited ? "bg-yellow-100/60 dark:bg-yellow-900/30" : ""} ${isClipboardSource ? "ring-1 ring-inset ring-primary" : ""} ${filling ? "ring-1 ring-inset ring-primary/70 bg-primary/5" : ""}`}
                 >
-                  {def
-                    ? <EditableCell
-                        record={record}
-                        def={def}
-                        ctx={ctx}
-                        classifications={classifications}
-                        edit={edits[record.id]?.[f]}
-                        onChange={(value) => onEdit(record.id, f, value)}
-                      />
-                    : "-"}
-                  {editable && (
+                  {!def
+                    ? "-"
+                    : isEditing
+                      ? <EditableCell
+                          record={record}
+                          def={def}
+                          ctx={ctx}
+                          classifications={classifications}
+                          edit={edits[record.id]?.[f]}
+                          onChange={(value) => onEdit(record.id, f, value)}
+                          onExit={() => setEditing((cur) => (cur?.recordId === record.id && cur?.fieldName === f ? null : cur))}
+                        />
+                      : <div
+                          onClick={() => editable && setEditing({ recordId: record.id, fieldName: f })}
+                          className={`min-h-7 whitespace-pre-wrap rounded px-1.5 py-1 text-xs ${editable ? "cursor-text hover:bg-muted/50" : "text-muted-foreground"}`}
+                        >
+                          {displayValue(def, cellValue(record, def), ctx) || <span className="text-muted-foreground">—</span>}
+                        </div>}
+                  {editable && !isEditing && (
                     <div className="absolute bottom-1 left-1 z-10 hidden items-center gap-0.5 rounded border bg-background/95 p-0.5 shadow-sm group-hover:flex">
                       <button
                         title="Copy cell"
@@ -345,7 +400,7 @@ export function RecordsTableEditable({
                       </button>
                     </div>
                   )}
-                  {editable && (
+                  {editable && !isEditing && (
                     <div
                       title="Drag to fill down"
                       onMouseDown={(e) => { e.preventDefault(); setDrag({ fieldName: f, startIndex: rowIndex, currentIndex: rowIndex }) }}
