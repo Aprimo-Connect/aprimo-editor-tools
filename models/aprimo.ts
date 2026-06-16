@@ -36,6 +36,7 @@ export type FieldDef = {
   isReadOnly?: boolean
   rootId?: string
   items?: OptionItem[]
+  acceptMultipleOptions?: boolean
 }
 
 export type ClassificationNode = {

@@ -11,9 +11,19 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Button } from "@/components/ui/button"
 import { useAprimo } from "@/context/aprimo-context"
-import type { FieldDef, ClassificationNode } from "@/models/aprimo"
+import type { FieldDef, ClassificationNode, OptionItem } from "@/models/aprimo"
 import { buildClassificationTree, flattenForPicker } from "@/lib/classifications"
 import type { FlatNode } from "@/lib/classifications"
+
+// Split a cell into distinct option values. Multi-select option lists are
+// semicolon-delimited; single-select fields treat the whole cell as one value.
+function splitOptionCell(raw: string, acceptMultiple: boolean): string[] {
+  if (!acceptMultiple) {
+    const v = raw.trim()
+    return v ? [v] : []
+  }
+  return raw.split(";").map((s) => s.trim()).filter(Boolean)
+}
 
 interface ParsedFile {
   headers: string[]
@@ -59,14 +69,18 @@ async function parseFile(file: File): Promise<ParsedFile> {
   return { headers, columnValues, rows }
 }
 
-function ClassificationCombobox({
+function ValueCombobox({
   nodes,
   value,
   onChange,
+  placeholder = "Select…",
+  searchPlaceholder = "Search…",
 }: {
   nodes: FlatNode[]
   value: string
   onChange: (id: string) => void
+  placeholder?: string
+  searchPlaceholder?: string
 }) {
   const [open, setOpen] = useState(false)
   const selected = nodes.find((n) => n.id === value)
@@ -75,13 +89,13 @@ function ClassificationCombobox({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" role="combobox" className="h-7 w-full max-w-xs justify-between text-xs font-normal">
-          <span className="truncate">{selected ? selected.label : "Select classification…"}</span>
+          <span className="truncate">{selected ? selected.label : placeholder}</span>
           <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="start">
         <Command>
-          <CommandInput placeholder="Search classifications…" className="text-xs" />
+          <CommandInput placeholder={searchPlaceholder} className="text-xs" />
           <CommandList>
             <CommandEmpty className="text-xs">No match found.</CommandEmpty>
             <CommandGroup>
@@ -126,8 +140,10 @@ export default function ExcelImportPage() {
   const [recordIdColumn, setRecordIdColumn] = useState<string>("")
   const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({})
   const [classificationMappings, setClassificationMappings] = useState<Record<string, Record<string, string>>>({})
+  const [optionMappings, setOptionMappings] = useState<Record<string, Record<string, string>>>({})
 
   const [fieldDefs, setFieldDefs] = useState<FieldDef[]>([])
+  const [optionItemsByField, setOptionItemsByField] = useState<Map<string, OptionItem[]>>(new Map())
   const [classifications, setClassifications] = useState<ClassificationNode[]>([])
   const [languages, setLanguages] = useState<{ id: string; name: string }[]>([])
   const [languageId, setLanguageId] = useState<string>("")
@@ -155,10 +171,16 @@ export default function ExcelImportPage() {
         if (!result.ok) break
         allDefs.push(...(result.data?.items ?? []) as unknown as FieldDef[])
       }
-      setFieldDefs(
-        allDefs
-          .filter((d) => !["RecordLink", "Json", "HyperlinkList", "Duration"].includes(d.dataType))
-          .sort((a, b) => (a.label ?? a.name).localeCompare(b.label ?? b.name))
+      const filtered = allDefs
+        .filter((d) => !["RecordLink", "Json", "HyperlinkList", "Duration"].includes(d.dataType))
+        .sort((a, b) => (a.label ?? a.name).localeCompare(b.label ?? b.name))
+      setFieldDefs(filtered)
+      setOptionItemsByField(
+        new Map(
+          filtered
+            .filter((d) => d.dataType === "OptionList" && d.items)
+            .map((d) => [d.name, d.items!])
+        )
       )
     }
 
@@ -184,6 +206,7 @@ export default function ExcelImportPage() {
         if (recordIdColumn === h) setRecordIdColumn("")
         setFieldMappings((m) => { const n = { ...m }; delete n[h]; return n })
         setClassificationMappings((m) => { const n = { ...m }; delete n[h]; return n })
+        setOptionMappings((m) => { const n = { ...m }; delete n[h]; return n })
       }
       return next
     })
@@ -200,6 +223,13 @@ export default function ExcelImportPage() {
     }))
   }
 
+  function setOptionMapping(column: string, excelValue: string, optionId: string) {
+    setOptionMappings((prev) => ({
+      ...prev,
+      [column]: { ...(prev[column] ?? {}), [excelValue]: optionId },
+    }))
+  }
+
   async function handleFile(f: File) {
     if (!f.name.match(/\.(xlsx|xls)$/i)) return
     setFile(f)
@@ -210,6 +240,7 @@ export default function ExcelImportPage() {
     setRecordIdColumn("")
     setFieldMappings({})
     setClassificationMappings({})
+    setOptionMappings({})
     setSaveResults([])
     setLoading(true)
     try {
@@ -283,10 +314,47 @@ export default function ExcelImportPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classifications, fieldMappings, mappableColumns.join(",")])
 
+  useEffect(() => {
+    if (!optionItemsByField.size) return
+    const normalize = (s: string) => s.toLowerCase().trim()
+    for (const col of mappableColumns) {
+      const fieldName = fieldMappings[col]
+      if (!fieldName) continue
+      const def = fieldDefs.find((d) => d.name === fieldName)
+      if (def?.dataType !== "OptionList") continue
+      const items = optionItemsByField.get(fieldName) ?? []
+      if (!items.length) continue
+      const rawValues = columnValues[col] ?? []
+      const values = Array.from(
+        new Set(rawValues.flatMap((v) => splitOptionCell(v, !!def.acceptMultipleOptions)))
+      )
+      if (!values.length) continue
+      setOptionMappings((prev) => {
+        const colMap = { ...(prev[col] ?? {}) }
+        let changed = false
+        for (const val of values) {
+          if (colMap[val]) continue
+          const match = items.find(
+            (it) => normalize(it.name) === normalize(val) || normalize(it.label || "") === normalize(val)
+          )
+          if (match) { colMap[val] = match.id; changed = true }
+        }
+        return changed ? { ...prev, [col]: colMap } : prev
+      })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [optionItemsByField, fieldMappings, mappableColumns.join(",")])
+
   const classificationColumns = mappableColumns.filter((col) => {
     const fieldName = fieldMappings[col]
     if (!fieldName) return false
     return fieldDefs.find((d) => d.name === fieldName)?.dataType === "ClassificationList"
+  })
+
+  const optionColumns = mappableColumns.filter((col) => {
+    const fieldName = fieldMappings[col]
+    if (!fieldName) return false
+    return fieldDefs.find((d) => d.name === fieldName)?.dataType === "OptionList"
   })
 
   const NUMERIC_TYPES = ["Numeric"]
@@ -330,6 +398,15 @@ export default function ExcelImportPage() {
               .split(";")
               .map((v) => v.trim())
               .filter(Boolean)
+              .map((v) => colMap[v])
+              .filter(Boolean)
+            if (!ids.length) return []
+            return [{ id: def.id, localizedValues: [{ languageId, values: ids }] }]
+          }
+
+          if (def.dataType === "OptionList") {
+            const colMap = optionMappings[col] ?? {}
+            const ids = splitOptionCell(rawValue, !!def.acceptMultipleOptions)
               .map((v) => colMap[v])
               .filter(Boolean)
             if (!ids.length) return []
@@ -497,7 +574,7 @@ export default function ExcelImportPage() {
                               </SelectTrigger>
                               <SelectContent>
                                 {fieldDefs.map((d) => {
-                                  const tested = ["SingleLineText", "MultiLineText", "ClassificationList", "Numeric", "TextList"].includes(d.dataType)
+                                  const tested = ["SingleLineText", "MultiLineText", "ClassificationList", "Numeric", "TextList", "OptionList"].includes(d.dataType)
                                   return (
                                     <SelectItem key={d.id} value={d.name} className="text-xs" disabled={!!d.isReadOnly}>
                                       <span className="flex items-center gap-2">
@@ -563,10 +640,64 @@ export default function ExcelImportPage() {
                           <tr key={val} className={i % 2 === 0 ? "bg-muted/20" : ""}>
                             <td className="px-4 py-2 font-mono text-xs">{val}</td>
                             <td className="px-4 py-2">
-                              <ClassificationCombobox
+                              <ValueCombobox
                                 nodes={flatNodes}
                                 value={colMap[val] ?? ""}
                                 onChange={(id) => setClassificationMapping(col, val, id)}
+                                placeholder="Select classification…"
+                                searchPlaceholder="Search classifications…"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* Option list value mappings */}
+            {optionColumns.map((col) => {
+              const colMap = optionMappings[col] ?? {}
+              const fieldDef = fieldDefs.find((d) => d.name === fieldMappings[col])
+              const rawValues = columnValues[col] ?? []
+              const values = Array.from(
+                new Set(rawValues.flatMap((v) => splitOptionCell(v, !!fieldDef?.acceptMultipleOptions)))
+              ).sort()
+              const items = optionItemsByField.get(fieldMappings[col] ?? "") ?? []
+              const flatNodes: FlatNode[] = items.map((it) => ({ id: it.id, label: it.label || it.name, depth: 0 }))
+              return (
+                <div key={col}>
+                  <p className="text-sm font-medium mb-1">
+                    Option values — <span className="font-mono">{col}</span>
+                    <span className="text-muted-foreground font-normal"> → {fieldDef?.label ?? fieldDef?.name}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Match each Excel value to an option from this field.
+                    {fieldDef?.acceptMultipleOptions
+                      ? " This field accepts multiple options — separate values in a cell with semicolons."
+                      : " This field accepts a single option per record."}
+                  </p>
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border bg-muted/50">
+                          <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Excel value</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Aprimo option</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {values.map((val, i) => (
+                          <tr key={val} className={i % 2 === 0 ? "bg-muted/20" : ""}>
+                            <td className="px-4 py-2 font-mono text-xs">{val}</td>
+                            <td className="px-4 py-2">
+                              <ValueCombobox
+                                nodes={flatNodes}
+                                value={colMap[val] ?? ""}
+                                onChange={(id) => setOptionMapping(col, val, id)}
+                                placeholder="Select option…"
+                                searchPlaceholder="Search options…"
                               />
                             </td>
                           </tr>
