@@ -3,13 +3,14 @@
 import { useRef, useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { FileSpreadsheet, Upload, ChevronsUpDown, Check, CheckCircle2, XCircle, Loader2 } from "lucide-react"
+import { FileSpreadsheet, Upload, ChevronsUpDown, Check, CheckCircle2, XCircle, Loader2, Eye } from "lucide-react"
 import ExcelJS from "exceljs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useAprimo } from "@/context/aprimo-context"
 import type { FieldDef, ClassificationNode, OptionItem } from "@/models/aprimo"
 import { buildClassificationTree, flattenForPicker } from "@/lib/classifications"
@@ -377,6 +378,32 @@ export default function ExcelImportPage() {
     return fieldDefs.find((d) => d.name === fieldName)?.dataType === "OptionList"
   })
 
+  // Whether a classification/option cell holds a value that the auto-matcher
+  // can't resolve, meaning it required manual matching. Mirrors the auto-match
+  // effects so the result stays consistent.
+  function cellNeedsManualMatch(col: string, rawValue: string): boolean {
+    if (!rawValue?.trim()) return false
+    const fieldName = fieldMappings[col]
+    if (!fieldName) return false
+    const def = fieldDefs.find((d) => d.name === fieldName)
+    if (!def) return false
+    const norm = (s: string) => s.toLowerCase().trim()
+    if (def.dataType === "ClassificationList") {
+      const parts = rawValue.split(";").map((s) => s.trim()).filter(Boolean)
+      return parts.some((p) =>
+        !classifications.some((c) => norm(c.name) === norm(p) || norm(c.labelPath || "") === norm(p))
+      )
+    }
+    if (def.dataType === "OptionList") {
+      const items = optionItemsByField.get(fieldName) ?? []
+      const parts = splitOptionCell(rawValue, !!def.acceptMultipleOptions)
+      return parts.some((p) =>
+        !items.some((it) => norm(it.name) === norm(p) || norm(it.label || "") === norm(p))
+      )
+    }
+    return false
+  }
+
   const NUMERIC_TYPES = ["Numeric"]
 
   const numericErrors: { col: string; fieldLabel: string; invalidValues: string[] }[] = mappableColumns.flatMap((col) => {
@@ -520,10 +547,65 @@ export default function ExcelImportPage() {
           <div className="mt-6 space-y-6">
             {/* Column selector */}
             <div>
-              <p className="text-xs text-muted-foreground mb-2">
-                {headers.length} column{headers.length !== 1 ? "s" : ""} found
-                {selectedHeaders.size > 0 && ` · ${selectedHeaders.size} selected`}
-              </p>
+              <div className="flex items-center justify-between mb-2 gap-3">
+                <p className="text-xs text-muted-foreground">
+                  {headers.length} column{headers.length !== 1 ? "s" : ""} found
+                  {selectedHeaders.size > 0 && ` · ${selectedHeaders.size} selected`}
+                  {` · ${rows.length} row${rows.length !== 1 ? "s" : ""}`}
+                </p>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7 text-xs">
+                      <Eye className="mr-1 h-3 w-3" />
+                      View contents
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-[90vw] sm:max-w-[90vw]">
+                    <DialogHeader>
+                      <DialogTitle className="text-sm">
+                        {file?.name} · {rows.length} row{rows.length !== 1 ? "s" : ""}
+                      </DialogTitle>
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="inline-block h-3 w-3 rounded-sm bg-yellow-200 dark:bg-yellow-900/50" />
+                        Highlighted classification / option values have no automatic match and need manual matching.
+                      </p>
+                    </DialogHeader>
+                    <div className="overflow-auto max-h-[70vh] border border-border rounded-lg">
+                      <table className="w-full text-xs border-collapse">
+                        <thead className="sticky top-0 bg-muted">
+                          <tr>
+                            <th className="px-2 py-1.5 text-left font-medium text-muted-foreground border-b border-border w-10">#</th>
+                            {headers.map((h) => (
+                              <th key={h} className="px-2 py-1.5 text-left font-medium text-muted-foreground border-b border-border whitespace-nowrap font-mono">
+                                {h}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map((row, i) => (
+                            <tr key={i} className={i % 2 === 0 ? "bg-muted/20" : ""}>
+                              <td className="px-2 py-1 text-muted-foreground border-b border-border">{i + 1}</td>
+                              {headers.map((h) => {
+                                const needsManual = cellNeedsManualMatch(h, row[h])
+                                return (
+                                  <td
+                                    key={h}
+                                    className={`px-2 py-1 border-b border-border whitespace-nowrap max-w-xs truncate ${needsManual ? "bg-yellow-200 text-yellow-900 dark:bg-yellow-900/50 dark:text-yellow-100" : ""}`}
+                                    title={row[h]}
+                                  >
+                                    {row[h]}
+                                  </td>
+                                )
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {headers.map((h, i) => {
                   const selected = selectedHeaders.has(h)
