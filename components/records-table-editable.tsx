@@ -33,27 +33,42 @@ export function getRawValue(record: AprimoRecord, fieldName: string, langId?: st
   return { value: lv.value ?? "" }
 }
 
-function displayValue(def: FieldDef, v: EditValue, ctx: FieldValueContext): string {
-  if (v.values) {
-    if (def.dataType === "ClassificationList") {
-      return v.values.map((id) => {
-        const node = ctx.classificationsById?.get(id)
-        if (!node) return id
-        const langId = ctx.selectedLanguageId
-        if (langId && langId !== "__system__") {
-          const localized = node.labels?.find((l) => l.languageId === langId)?.value
-          if (localized) return localized
-        }
-        return node.name || node.labelPath || id
-      }).join(", ")
-    }
-    if (def.dataType === "OptionList") {
-      const items = ctx.optionItemsByField?.get(def.name)
-      return v.values.map((id) => items?.find((it) => it.id === id)?.label || id).join(", ")
-    }
-    return v.values.join(", ")
+/** Pretty labels for an array-valued field (TextList / OptionList / ClassificationList). */
+function displayLabels(def: FieldDef, v: EditValue, ctx: FieldValueContext): string[] | null {
+  if (!v.values) return null
+  if (def.dataType === "ClassificationList") {
+    return v.values.map((id) => {
+      const node = ctx.classificationsById?.get(id)
+      if (!node) return id
+      const langId = ctx.selectedLanguageId
+      if (langId && langId !== "__system__") {
+        const localized = node.labels?.find((l) => l.languageId === langId)?.value
+        if (localized) return localized
+      }
+      return node.name || node.labelPath || id
+    })
   }
-  return v.value ?? ""
+  if (def.dataType === "OptionList") {
+    const items = ctx.optionItemsByField?.get(def.name)
+    return v.values.map((id) => items?.find((it) => it.id === id)?.label || id)
+  }
+  return v.values
+}
+
+/** Render a cell's value: array-valued fields as pills, scalars as text. */
+function CellDisplay({ def, value, ctx }: { def: FieldDef; value: EditValue; ctx: FieldValueContext }) {
+  const labels = displayLabels(def, value, ctx)
+  if (labels) {
+    if (!labels.length) return <span className="text-muted-foreground">—</span>
+    return (
+      <div className="flex flex-wrap gap-1">
+        {labels.map((label, i) => (
+          <Badge key={i} variant="secondary" className="text-xs font-normal">{label}</Badge>
+        ))}
+      </div>
+    )
+  }
+  return value.value ? <>{value.value}</> : <span className="text-muted-foreground">—</span>
 }
 
 /** Generic single/multi value picker driven by a flat list of {id,label,depth} options. */
@@ -259,6 +274,8 @@ interface RecordsTableEditableProps {
   classifications: ClassificationNode[]
   edits: Record<string, Record<string, EditValue>>
   onEdit: (recordId: string, fieldName: string, value: EditValue) => void
+  showContentType?: boolean
+  showStatus?: boolean
 }
 
 interface Clipboard {
@@ -282,6 +299,8 @@ export function RecordsTableEditable({
   classifications,
   edits,
   onEdit,
+  showContentType = true,
+  showStatus = true,
 }: RecordsTableEditableProps) {
   const [clipboard, setClipboard] = useState<Clipboard | null>(null)
   const [drag, setDrag] = useState<DragFill | null>(null)
@@ -330,8 +349,8 @@ export function RecordsTableEditable({
         <tr className="border-b text-left">
           <th className="pb-2 pr-4 font-medium w-20"></th>
           <th className="pb-2 pr-4 font-medium">ID</th>
-          <th className="pb-2 pr-4 font-medium">Content Type</th>
-          <th className="pb-2 pr-4 font-medium">Status</th>
+          {showContentType && <th className="pb-2 pr-4 font-medium">Content Type</th>}
+          {showStatus && <th className="pb-2 pr-4 font-medium">Status</th>}
           {tableFields.map((f) => (
             <th key={f} className="pb-2 pr-4 font-medium">
               {fieldDefs.find((d) => d.name === f)?.label ?? f}
@@ -348,8 +367,8 @@ export function RecordsTableEditable({
                 : <div className="w-16 h-16 bg-muted rounded" />}
             </td>
             <td className="py-2 pr-4 font-mono text-xs">{record.id}</td>
-            <td className="py-2 pr-4">{record.contentType ?? "-"}</td>
-            <td className="py-2 pr-4">{record.status ?? "-"}</td>
+            {showContentType && <td className="py-2 pr-4">{record.contentType ?? "-"}</td>}
+            {showStatus && <td className="py-2 pr-4">{record.status ?? "-"}</td>}
             {tableFields.map((f) => {
               const def = fieldDefs.find((d) => d.name === f)
               const edited = edits[record.id]?.[f] !== undefined
@@ -379,7 +398,7 @@ export function RecordsTableEditable({
                           onClick={() => editable && setEditing({ recordId: record.id, fieldName: f })}
                           className={`min-h-7 whitespace-pre-wrap rounded px-1.5 py-1 text-xs ${editable ? "cursor-text hover:bg-muted/50" : "text-muted-foreground"}`}
                         >
-                          {displayValue(def, cellValue(record, def), ctx) || <span className="text-muted-foreground">—</span>}
+                          <CellDisplay def={def} value={cellValue(record, def)} ctx={ctx} />
                         </div>}
                   {editable && !isEditing && (
                     <div className="absolute bottom-1 left-1 z-10 hidden items-center gap-0.5 rounded border bg-background/95 p-0.5 shadow-sm group-hover:flex">

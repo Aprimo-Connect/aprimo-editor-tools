@@ -46,6 +46,8 @@ function BasketEditorContent() {
   const [languageId, setLanguageId] = useState<string>("")
 
   const [edits, setEdits] = useState<Record<string, Record<string, EditValue>>>({})
+  const [showContentType, setShowContentType] = useState(true)
+  const [showStatus, setShowStatus] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveProgress, setSaveProgress] = useState<{ done: number; total: number } | null>(null)
@@ -304,6 +306,22 @@ function BasketEditorContent() {
               {requestedCount !== null && ` (${requestedCount} requested)`}
             </p>
             <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                variant={showContentType ? "secondary" : "outline"}
+                className="h-7 text-xs px-2"
+                onClick={() => setShowContentType((v) => !v)}
+              >
+                Content Type
+              </Button>
+              <Button
+                size="sm"
+                variant={showStatus ? "secondary" : "outline"}
+                className="h-7 text-xs px-2"
+                onClick={() => setShowStatus((v) => !v)}
+              >
+                Status
+              </Button>
               <Label htmlFor="save-language" className="text-xs whitespace-nowrap">Save language</Label>
               <Select value={languageId} onValueChange={setLanguageId}>
                 <SelectTrigger id="save-language" className="w-48 h-8 text-xs">
@@ -358,6 +376,8 @@ function BasketEditorContent() {
             classifications={classifications}
             edits={edits}
             onEdit={onEdit}
+            showContentType={showContentType}
+            showStatus={showStatus}
           />
 
           {saveResults.some((r) => !r.success) && (
