@@ -50,6 +50,11 @@ export function Navbar({ showPageHeader = true }: NavbarProps = {}) {
                 Dynamic Content
               </Link>
             )}
+            {isConnected && (
+              <Link href="/duplicates" className="text-muted-foreground hover:text-foreground transition-colors">
+                Duplicates
+              </Link>
+            )}
             {isConnected && connection?.environment && (
               <a
                 href={`https://${connection.environment}.dam.aprimo.com/dam`}

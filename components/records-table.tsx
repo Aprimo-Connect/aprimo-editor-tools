@@ -47,9 +47,11 @@ interface RecordsTableProps {
   tableFields: string[]
   fieldDefs: FieldDef[]
   ctx: FieldValueContext
+  /** When provided, rows become clickable. */
+  onRecordClick?: (record: AprimoRecord) => void
 }
 
-export function RecordsTable({ records, tableFields, fieldDefs, ctx }: RecordsTableProps) {
+export function RecordsTable({ records, tableFields, fieldDefs, ctx, onRecordClick }: RecordsTableProps) {
   return (
     <table className="mt-4 w-full text-sm border-collapse">
       <thead>
@@ -67,7 +69,11 @@ export function RecordsTable({ records, tableFields, fieldDefs, ctx }: RecordsTa
       </thead>
       <tbody>
         {records.map((record) => (
-          <tr key={record.id} className="border-b last:border-0">
+          <tr
+            key={record.id}
+            className={`border-b last:border-0 ${onRecordClick ? "cursor-pointer hover:bg-muted/50" : ""}`}
+            onClick={onRecordClick ? () => onRecordClick(record) : undefined}
+          >
             <td className="py-2 pr-4">
               {getThumbnailUri(record)
                 ? <img src={getThumbnailUri(record)} alt="" className="w-16 h-16 object-cover rounded" />

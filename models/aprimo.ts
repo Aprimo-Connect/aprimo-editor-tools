@@ -34,9 +34,15 @@ export type FieldDef = {
   label: string
   dataType: string
   isReadOnly?: boolean
+  /** Whether searching on this field is enabled (Aprimo field-definition flag). */
+  indexed?: boolean
+  /** The field's default value (option id/name for option lists). */
+  defaultValue?: string
   rootId?: string
   items?: OptionItem[]
   acceptMultipleOptions?: boolean
+  /** RecordLink relationship type, e.g. "OneParentOneChild", "ManyParentsManyChildren". */
+  linkType?: string
 }
 
 export type ClassificationNode = {

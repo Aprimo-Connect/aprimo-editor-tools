@@ -12,6 +12,7 @@ const routeLabels: Record<string, string> = {
   "basket-editor": "Basket Editor",
   "video-resizer": "Video Resizer",
   "video-studio": "Video Studio",
+  "duplicates": "Duplicate Assets",
 }
 
 export function PageHeader() {
