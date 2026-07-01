@@ -217,6 +217,36 @@ Import metadata from an Excel file into Aprimo records.
 - Choose the target language for localized field values
 - Saves to Aprimo using `records.update()` with built-in rate-limit handling
 
+### Duplicate Assets
+
+Find and resolve duplicate assets by matching on the master file's **checksum** and/or **filename**. Opened from the home page or the navbar (no page hook required) — it loads automatically on connect.
+
+- Builds the list by **faceting** on the `_Checksum` field, keeping values shared by more than one record, then fetching those records
+- **Match on** dropdown — switch between **Checksum**, **Filename**, or **both** (both also matches the checksum + filename pair). Changing it refreshes the list
+- Compact, clickable grid; each tile shows the filename and checksum
+- Click an asset to open a **side-by-side comparison** of every metadata field against its duplicate, with mismatches highlighted
+  - For mismatched fields, click either side to choose which value to keep, then **Apply selected to this asset**
+  - **RecordLink** fields render the referenced assets (thumbnail + title) and, for multi-value links, offer a **Merge & dedupe** option that unions both sides' parents / children / links
+  - **Delete duplicate** removes the matched record; if the surviving asset no longer matches any other record it drops from the list
+
+#### Required global fields
+
+The Duplicates tool requires **two global, indexed, single-line text fields** on your records: **`_Checksum`** and **`_Filename`**. (The field names are resolved by label/name, so minor variations are tolerated, but `_Checksum` / `_Filename` are expected.)
+
+Populate them from the master file with Aprimo rule references:
+
+```xml
+<!-- _Checksum -->
+<ref:record file="master" out="CRC32"/>
+
+<!-- _Filename -->
+<ref:record file="master" out="filename"/>
+```
+
+- Both fields must be **indexed** (searchable) so they can be faceted and queried.
+- Configure both to **reset `OnMasterFileChange`** so the values stay in sync when a master file is replaced.
+- For **existing assets**, the references only run on change — you may need to run a **maintenance job** (e.g. a field-resave / touch action) to populate `_Checksum` and `_Filename` across the current library before the tool can detect their duplicates.
+
 ## Data Flow
 
 1. **Pagehook trigger** — The Aprimo UI sends a page hook POST to the Webhook Endpoint containing the action name and one or more record IDs.

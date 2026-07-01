@@ -105,7 +105,7 @@ export default function Home() {
                     <h2 className="text-lg font-semibold">Duplicate Assets</h2>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    View all assets flagged as duplicates by the IsDuplicate option-list field.
+                    Find duplicate assets by matching file checksum and filename.
                   </p>
                 </div>
               </Link>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import type { AprimoRecord, FieldDef, FieldValueContext } from "@/models/aprimo"
@@ -99,6 +99,8 @@ interface DuplicateCompareModalProps {
   error: string | null
   onApply?: (picks: MergePick[]) => Promise<void>
   onDelete?: () => Promise<void>
+  /** id → referenced asset, used to show record-link values as asset titles. */
+  linkedAssets?: Map<string, { title?: string; thumbnailUri?: string }>
 }
 
 export function DuplicateCompareModal({
@@ -112,6 +114,7 @@ export function DuplicateCompareModal({
   error,
   onApply,
   onDelete,
+  linkedAssets,
 }: DuplicateCompareModalProps) {
   const [selections, setSelections] = useState<Record<string, MergeSide>>({})
   const [applying, setApplying] = useState(false)
@@ -196,7 +199,30 @@ export function DuplicateCompareModal({
     }
   }
 
-  const chip = (row: Row, side: MergeSide, value: string, label?: string) => {
+  // Record-link rows hold record ids; render the referenced assets as
+  // thumbnail + title chips. Other fields render their text value.
+  const cellContent = (row: Row, raw: string): ReactNode => {
+    if (row.dataType !== "RecordLink") return raw || "-"
+    const ids = raw.split(RL_SPLIT).map((s) => s.trim()).filter(Boolean)
+    if (ids.length === 0) return "-"
+    return (
+      <span className="inline-flex items-center gap-2">
+        {ids.map((id) => {
+          const a = linkedAssets?.get(id)
+          return (
+            <span key={id} className="inline-flex items-center gap-1">
+              {a?.thumbnailUri
+                ? <img src={a.thumbnailUri} alt="" className="w-12 h-12 object-cover rounded shrink-0" />
+                : <span className="w-12 h-12 rounded bg-muted inline-block shrink-0" />}
+              <span>{a?.title || id}</span>
+            </span>
+          )
+        })}
+      </span>
+    )
+  }
+
+  const chip = (row: Row, side: MergeSide, content: ReactNode, label?: string) => {
     const selected = sideFor(row.name) === side
     return (
       <button
@@ -208,7 +234,7 @@ export function DuplicateCompareModal({
         title={selected ? "Selected" : "Click to use this value"}
       >
         {label && <span className="text-[10px] uppercase tracking-wide opacity-70 mr-1">{label}</span>}
-        {value || "-"}
+        {content}
       </button>
     )
   }
@@ -218,25 +244,27 @@ export function DuplicateCompareModal({
     if (column === "b" && loading) return null
     const selectable = row.diff && !row.readOnly && !!duplicate
     if (!selectable) {
-      return <span className="whitespace-nowrap">{(column === "a" ? row.a : row.b) || "-"}</span>
+      return <span className="whitespace-nowrap">{cellContent(row, column === "a" ? row.a : row.b)}</span>
     }
-    if (column === "a") return chip(row, "a", row.a, row.canMerge ? "This" : undefined)
+    if (column === "a") return chip(row, "a", cellContent(row, row.a), row.canMerge ? "This" : undefined)
     return (
       <div className="flex items-center gap-3 whitespace-nowrap">
-        {chip(row, "b", row.b, row.canMerge ? "Dup" : undefined)}
-        {row.canMerge && chip(row, "merge", row.merged, "Merge")}
+        {chip(row, "b", cellContent(row, row.b), row.canMerge ? "Dup" : undefined)}
+        {row.canMerge && chip(row, "merge", cellContent(row, row.merged), "Merge")}
       </div>
     )
   }
 
   const rowBg = (row: Row) => (row.diff ? "bg-amber-50 dark:bg-amber-950/30" : "")
+  // RecordLink rows render thumbnails, so they need a taller row to stay aligned.
+  const rowH = (row: Row) => (row.dataType === "RecordLink" ? "h-14" : ROW_H)
 
   // One vertically-stacked, horizontally-scrolling value column.
   const ValueColumn = ({ column }: { column: "a" | "b" }) => (
     <div className="flex-1 min-w-0 overflow-x-auto">
       <div className="w-max min-w-full">
         {rows.map((row, i) => (
-          <div key={`${column}-${row.label}-${i}`} className={`${ROW_H} flex items-center px-2 border-b last:border-0 ${rowBg(row)}`}>
+          <div key={`${column}-${row.label}-${i}`} className={`${rowH(row)} flex items-center px-2 border-b last:border-0 ${rowBg(row)}`}>
             {valueContent(row, column)}
           </div>
         ))}
@@ -283,7 +311,7 @@ export function DuplicateCompareModal({
           <div className="flex text-sm">
             <div className="w-44 shrink-0">
               {rows.map((row, i) => (
-                <div key={`label-${row.label}-${i}`} className={`${ROW_H} flex items-center px-2 border-b last:border-0 font-medium text-muted-foreground ${rowBg(row)}`}>
+                <div key={`label-${row.label}-${i}`} className={`${rowH(row)} flex items-center px-2 border-b last:border-0 font-medium text-muted-foreground ${rowBg(row)}`}>
                   <span className="truncate" title={row.label}>{row.label}</span>
                 </div>
               ))}

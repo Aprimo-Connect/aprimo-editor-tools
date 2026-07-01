@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { useAprimo } from "@/context/aprimo-context"
@@ -18,35 +18,72 @@ import type { AprimoRecord, FieldDef, ClassificationNode, OptionItem } from "@/m
 
 const PAGE_SIZE = 100
 const MAX_RESULTS = 2000
-// Aprimo's search grammar references a custom option-list field with the function
-// form: FieldName("IsDuplicate").Option.Name = "1"  (a bare token throws
-// "field does not exist"). Option Name "1" marks an asset as a duplicate.
-const DUPLICATE_EXPRESSION = `FieldName("IsDuplicate").Option.Name = "1"`
-const DUP_FIELD_LABEL = "IsDuplicate"
-
-function getFileName(record: AprimoRecord): string | undefined {
-  return (record._embedded?.masterfilelatestversion as { fileName?: string } | undefined)?.fileName
-}
+// Faceting needs a base population to aggregate over; this matches all records.
+const FACET_BASE_EXPRESSION = `NOT id = ''`
 
 type MatchMode = "both" | "filename" | "checksum"
 
-// A record is a duplicate when it shares the master file's filename and/or checksum,
-// per the chosen mode. Builds e.g.
-// file.version.filename = '<name>' AND file.version.checksum = '<crc32>' AND NOT id = '<id>'
-function duplicateMatchExpression(record: AprimoRecord, excludeId: string, mode: MatchMode): string | null {
-  const fileName = getFileName(record)
-  const { crc32 } = getChecksums(record)
-  const clauses: string[] = []
-  if (mode !== "checksum" && fileName) clauses.push(`file.version.filename = '${fileName.replace(/'/g, "''")}'`)
-  if (mode !== "filename" && crc32 != null && crc32 !== 0) clauses.push(`file.version.checksum = '${crc32}'`)
-  if (clauses.length === 0) return null
-  clauses.push(`NOT id = '${excludeId}'`)
-  return clauses.join(" AND ")
+// Match a field definition by name/label against candidate tokens.
+function matchesField(d: FieldDef, candidates: string[]): boolean {
+  const n = (d.name ?? "").toLowerCase()
+  const l = (d.label ?? "").toLowerCase()
+  return candidates.some((c) => n === c || l === c || n.includes(c) || l.includes(c))
 }
 
-function getChecksums(record: AprimoRecord): { crc32?: number; sha256?: string } {
-  const fv = record._embedded?.masterfilelatestversion as { crc32?: number; sha256?: string } | undefined
-  return { crc32: fv?.crc32, sha256: fv?.sha256 }
+// First localized value of a record field, as a string.
+function getRecordFieldValue(record: AprimoRecord, fieldName: string): string {
+  const f = record._embedded?.fields?.items?.find((x) => x.fieldName === fieldName)
+  const lv = f?.localizedValues?.[0]
+  if (!lv) return ""
+  if (Array.isArray(lv.values)) return lv.values.join(", ")
+  return lv.value ?? ""
+}
+
+// Collect every record id referenced by the record's RecordLink fields.
+function collectRecordLinkIds(record: AprimoRecord): string[] {
+  const ids: string[] = []
+  for (const f of record._embedded?.fields?.items ?? []) {
+    if (f.dataType !== "RecordLink") continue
+    for (const lv of f.localizedValues ?? []) {
+      const rl = lv as {
+        value?: string
+        values?: string[] | null
+        links?: Array<{ recordId: string }>
+        parents?: Array<{ recordId: string }>
+        children?: Array<{ recordId: string }>
+      }
+      ids.push(...(rl.values ?? []))
+      ids.push(...(rl.links ?? []).map((x) => x.recordId))
+      ids.push(...(rl.parents ?? []).map((x) => x.recordId))
+      ids.push(...(rl.children ?? []).map((x) => x.recordId))
+      if (typeof rl.value === "string") ids.push(...rl.value.split(/[;,]/))
+    }
+  }
+  return Array.from(new Set(ids.map((s) => String(s).trim()).filter(Boolean)))
+}
+
+// A record is a duplicate when it shares the _Checksum and/or _Filename field
+// values, per the chosen mode. Builds e.g.
+// FieldName("_Filename") = "x" AND FieldName("_Checksum") = "y" AND NOT id = 'id'
+function duplicateMatchExpression(
+  record: AprimoRecord,
+  excludeId: string,
+  mode: MatchMode,
+  names: { checksum?: string; filename?: string },
+): string | null {
+  const q = (s: string) => s.replace(/"/g, '""')
+  const clauses: string[] = []
+  if (mode !== "checksum" && names.filename) {
+    const v = getRecordFieldValue(record, names.filename)
+    if (v) clauses.push(`FieldName("${q(names.filename)}") = "${q(v)}"`)
+  }
+  if (mode !== "filename" && names.checksum) {
+    const v = getRecordFieldValue(record, names.checksum)
+    if (v) clauses.push(`FieldName("${q(names.checksum)}") = "${q(v)}"`)
+  }
+  if (clauses.length === 0) return null
+  clauses.push(`NOT id = '${excludeId.replace(/'/g, "''")}'`)
+  return clauses.join(" AND ")
 }
 
 // Union + dedupe two record-link fields' localized values, per language, across
@@ -92,13 +129,14 @@ function mergeRecordLinkLocalizedValues(
 export default function DuplicatesPage() {
   const { client, isConnected, selectedLanguageId } = useAprimo()
 
-  const [expression, setExpression] = useState(DUPLICATE_EXPRESSION)
+  const [expression, setExpression] = useState("")
   const [records, setRecords] = useState<AprimoRecord[]>([])
   const [totalCount, setTotalCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasSearched, setHasSearched] = useState(false)
+  const [listNote, setListNote] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<"table" | "grid">("grid")
   const [matchMode, setMatchMode] = useState<MatchMode>("checksum")
   const [gridShowPreview, setGridShowPreview] = useState(false)
@@ -116,6 +154,7 @@ export default function DuplicatesPage() {
   const [duplicate, setDuplicate] = useState<AprimoRecord | null>(null)
   const [dupLoading, setDupLoading] = useState(false)
   const [dupError, setDupError] = useState<string | null>(null)
+  const [linkedAssets, setLinkedAssets] = useState<Map<string, { title?: string; thumbnailUri?: string }>>(new Map())
 
   useEffect(() => {
     if (!isConnected || !client) return
@@ -151,6 +190,14 @@ export default function DuplicatesPage() {
     loadFieldDefs()
     loadClassifications()
   }, [isConnected, client])
+
+  // Resolve the _Checksum / _Filename fields (text, indexed) from the loaded defs.
+  const checksumField = useMemo(() => fieldDefs.find((d) => matchesField(d, ["_checksum", "checksum", "crc32"])), [fieldDefs])
+  const filenameField = useMemo(() => fieldDefs.find((d) => matchesField(d, ["_filename", "filename"])), [fieldDefs])
+  const matchNames = useMemo(
+    () => ({ checksum: checksumField?.name, filename: filenameField?.name }),
+    [checksumField, filenameField]
+  )
 
   // Paginate through every record matching the search expression.
   const runExpression = useCallback(async (expr: string) => {
@@ -198,49 +245,160 @@ export default function DuplicatesPage() {
     }
   }, [runExpression])
 
-  // Load duplicates automatically once connected.
-  useEffect(() => {
-    if (isConnected && client) search(DUPLICATE_EXPRESSION)
-  }, [isConnected, client, search])
+  // Build the list by faceting on the field the match mode selects (checksum for
+  // "checksum"/"both", filename for "filename"): aggregate distinct values, keep
+  // those occurring more than once, then fetch the records that share them. For
+  // "both", additionally keep only records that share the same checksum+filename
+  // pair with another record.
+  const loadDuplicates = useCallback(async () => {
+    if (!client) return
+    const facetField = matchMode === "filename" ? filenameField : checksumField
+    const facetLabel = matchMode === "filename" ? "_Filename" : "_Checksum"
+    setLoading(true)
+    setError(null)
+    setListNote(null)
+    setHasSearched(true)
+    try {
+      if (!facetField) {
+        setError(`No "${facetLabel}" field found in this environment.`)
+        setRecords([])
+        setTotalCount(null)
+        return
+      }
+      const q = (s: string) => s.replace(/"/g, '""')
+      const facetRes = await client.search.records({
+        searchExpression: { expression: FACET_BASE_EXPRESSION },
+        // A textField facet aggregates a text field's distinct values with counts;
+        // it takes the field's fieldId. (SDK types omit these, so cast.)
+        facets: [{ name: "facet", type: "textField", fieldId: facetField.id, maximumFacetValues: 5000 }],
+        page: 1,
+        pageSize: 1,
+      } as unknown as Parameters<typeof client.search.records>[0])
+      if (!facetRes.ok) throw new Error(facetRes.error?.message ?? "Facet search failed")
 
-  // Resolve the asset's duplicate counterpart: another record sharing the master
-  // file's filename and checksum (file.version.filename + file.version.checksum).
+      const data = facetRes.data as unknown as { facets?: Array<{ name?: string; values?: unknown[] }> }
+      console.log("[duplicates] facet response:", data.facets)
+      const facet = (data.facets ?? [])[0]
+
+      // Parse defensively — a facet value may be a string or an object with a count.
+      const dupValues: string[] = []
+      for (const v of facet?.values ?? []) {
+        if (v && typeof v === "object") {
+          const o = v as { value?: unknown; key?: unknown; count?: number }
+          const key = o.value ?? o.key
+          if (key != null && (o.count ?? 0) > 1) dupValues.push(String(key))
+        }
+      }
+
+      if (dupValues.length === 0) {
+        setRecords([])
+        setTotalCount(0)
+        setListNote(`No duplicated ${matchMode === "filename" ? "filenames" : "checksums"} found.`)
+        return
+      }
+
+      const expander = Expander.create()
+        .for<AprimoSDKRecord>("Record").expand("fields", "masterfilelatestversion")
+        .for<FileVersion>("FileVersion").expand("thumbnail", "preview")
+      const BATCH = 25
+      const all: AprimoRecord[] = []
+      for (let i = 0; i < dupValues.length && all.length < MAX_RESULTS; i += BATCH) {
+        const expr = dupValues
+          .slice(i, i + BATCH)
+          .map((c) => `FieldName("${q(facetField.name)}") = "${q(c)}"`)
+          .join(" OR ")
+        const r = await client.search.records({ searchExpression: { expression: expr }, page: 1, pageSize: PAGE_SIZE }, expander)
+        if (r.ok) all.push(...((r.data as unknown as { items?: AprimoRecord[] })?.items ?? []))
+      }
+
+      // "both": narrow to records that share the same checksum+filename pair.
+      let result = all
+      if (matchMode === "both" && checksumField && filenameField) {
+        const keyOf = (rec: AprimoRecord) =>
+          `${getRecordFieldValue(rec, checksumField.name)}|${getRecordFieldValue(rec, filenameField.name)}`
+        const counts = new Map<string, number>()
+        for (const rec of all) counts.set(keyOf(rec), (counts.get(keyOf(rec)) ?? 0) + 1)
+        result = all.filter((rec) => (counts.get(keyOf(rec)) ?? 0) > 1)
+      }
+
+      setRecords(result)
+      setTotalCount(result.length)
+      const via = matchMode === "both" ? "checksum + filename" : matchMode === "filename" ? "filename" : "checksum"
+      setListNote(`${result.length} duplicate asset${result.length !== 1 ? "s" : ""} via ${via}.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load duplicates")
+      setRecords([])
+      setTotalCount(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [client, matchMode, checksumField, filenameField])
+
+  // Load (and reload) duplicates once fields are resolved and whenever the match
+  // mode changes — loadDuplicates's identity changes with matchMode.
+  useEffect(() => {
+    if (isConnected && client && fieldDefs.length) loadDuplicates()
+  }, [isConnected, client, fieldDefs.length, loadDuplicates])
+
+  // Fetch titles/thumbnails for records referenced by RecordLink fields, so the
+  // modal can show asset names instead of raw ids. Merges into linkedAssets.
+  const resolveLinkedAssets = useCallback(async (recs: AprimoRecord[]) => {
+    if (!client) return
+    const ids = Array.from(new Set(recs.flatMap(collectRecordLinkIds)))
+    if (ids.length === 0) return
+    const expander = Expander.create()
+      .for<AprimoSDKRecord>("Record").expand("masterfilelatestversion")
+      .for<FileVersion>("FileVersion").expand("thumbnail")
+    const BATCH = 50
+    const fetched = new Map<string, { title?: string; thumbnailUri?: string }>()
+    for (let i = 0; i < ids.length; i += BATCH) {
+      const expr = ids.slice(i, i + BATCH).map((id) => `id = '${id.replace(/'/g, "''")}'`).join(" OR ")
+      const r = await client.search.records({ searchExpression: { expression: expr }, page: 1, pageSize: BATCH }, expander)
+      if (!r.ok) continue
+      for (const it of (r.data as unknown as { items?: AprimoRecord[] })?.items ?? []) {
+        fetched.set(it.id, {
+          title: it.title ?? undefined,
+          thumbnailUri: it._embedded?.masterfilelatestversion?._embedded?.thumbnail?.uri,
+        })
+      }
+    }
+    if (fetched.size) setLinkedAssets((prev) => new Map([...prev, ...fetched]))
+  }, [client])
+
+  // Resolve the asset's duplicate counterpart: another record sharing the
+  // _Checksum and/or _Filename field values (per the chosen match mode).
   const resolveDuplicate = useCallback(async (rec: AprimoRecord) => {
     if (!client) return
     setDupLoading(true)
     setDupError(null)
     setDuplicate(null)
     try {
-      const expander = Expander.create()
-        .for<AprimoSDKRecord>("Record").expand("fields", "masterfilelatestversion")
-        .for<FileVersion>("FileVersion").expand("thumbnail", "preview")
-
-      // Ensure we have the master file's filename + checksum — refetch if missing.
-      let source = rec
-      if (!getFileName(rec) || getChecksums(rec).crc32 == null) {
-        const res = await client.records.getById(rec.id, expander)
-        if (res.ok) source = res.data as unknown as AprimoRecord
-      }
-
-      const expr = duplicateMatchExpression(source, rec.id, matchMode)
+      const expr = duplicateMatchExpression(rec, rec.id, matchMode, matchNames)
       if (!expr) {
-        setDupError("This asset has no filename/checksum to match a duplicate on.")
+        setDupError("This asset has no _Checksum/_Filename value to match a duplicate on.")
         return
       }
 
+      const expander = Expander.create()
+        .for<AprimoSDKRecord>("Record").expand("fields", "masterfilelatestversion")
+        .for<FileVersion>("FileVersion").expand("thumbnail", "preview")
       const r = await client.search.records({ searchExpression: { expression: expr } }, expander)
       if (!r.ok) throw new Error(r.error?.message ?? "Duplicate search failed")
       const items = (r.data as unknown as { items?: AprimoRecord[] })?.items ?? []
       const dupRec = items.find((it) => it.id !== rec.id) ?? null
 
-      if (!dupRec) setDupError("No matching duplicate record found.")
-      else setDuplicate(dupRec)
+      if (!dupRec) {
+        setDupError("No matching duplicate record found.")
+      } else {
+        setDuplicate(dupRec)
+        resolveLinkedAssets([dupRec])
+      }
     } catch (err) {
       setDupError(err instanceof Error ? err.message : "Failed to load duplicate")
     } finally {
       setDupLoading(false)
     }
-  }, [client, matchMode])
+  }, [client, matchMode, matchNames, resolveLinkedAssets])
 
   // Apply the user's per-field picks to the clicked asset. "a" picks already hold
   // this asset's value (no write); "b" takes the duplicate's value; "merge" unions
@@ -290,9 +448,9 @@ export default function DuplicatesPage() {
     }
   }, [client, selectedRecord, duplicate, fieldDefs])
 
-  // Delete the matched duplicate record, then recompute the surviving asset's
-  // IsDuplicate flag the way the Aprimo rule does: still "1" (duplicate) if any
-  // other record shares the checksum, otherwise "0" (not a duplicate).
+  // Delete the matched duplicate record. If the survivor no longer matches any
+  // other record (per the chosen mode), it's no longer a duplicate — drop it
+  // from the grid too.
   const handleDeleteDuplicate = useCallback(async () => {
     if (!client || !duplicate) return
     const del = await client.records.delete(duplicate.id)
@@ -300,48 +458,16 @@ export default function DuplicatesPage() {
 
     let survivorStillDuplicate = false
     if (selectedRecord) {
-      const dupDef = fieldDefs.find(
-        (d) =>
-          d.name.toLowerCase() === DUP_FIELD_LABEL.toLowerCase() ||
-          (d.label ?? "").toLowerCase() === DUP_FIELD_LABEL.toLowerCase()
-      )
-      if (dupDef) {
-        // Make sure the survivor has filename + checksum (refetch if the grid lacks them).
-        let survivor = selectedRecord
-        if (!getFileName(survivor) || getChecksums(survivor).crc32 == null) {
-          const exp = Expander.create().for<AprimoSDKRecord>("Record").expand("masterfilelatestversion")
-          const res = await client.records.getById(survivor.id, exp)
-          if (res.ok) survivor = res.data as unknown as AprimoRecord
-        }
-        // Any other record matching (per the chosen mode) means it's still a duplicate.
-        const expr = duplicateMatchExpression(survivor, selectedRecord.id, matchMode)
-        if (expr) {
-          const r = await client.search.records({ searchExpression: { expression: expr }, page: 1, pageSize: 1 })
-          if (r.ok) {
-            const data = r.data as unknown as { totalCount?: number; items?: unknown[] }
-            survivorStillDuplicate = (data.totalCount ?? data.items?.length ?? 0) > 0
-          }
-        }
-
-        // Set the flag to the option whose Name is "1" (duplicate) or "0" (not),
-        // using the resolved option item id — never a raw value.
-        const targetName = survivorStillDuplicate ? "1" : "0"
-        const targetId = (dupDef.items ?? []).find((i) => i.name === targetName)?.id
-        if (targetId) {
-          const existing = selectedRecord._embedded?.fields?.items?.find((f) => f.fieldName === dupDef.name)
-          const localizedValues = existing?.localizedValues?.length
-            ? existing.localizedValues.map((lv) => ({ languageId: lv.languageId, values: [targetId] }))
-            : [{ values: [targetId] }]
-          const upd = await client.records.update(
-            selectedRecord.id,
-            { fields: { addOrUpdate: [{ id: dupDef.id, localizedValues }] } } as unknown as Parameters<typeof client.records.update>[1]
-          )
-          if (!upd.ok) throw new Error(upd.error?.message ?? "Failed to update IsDuplicate")
+      const expr = duplicateMatchExpression(selectedRecord, selectedRecord.id, matchMode, matchNames)
+      if (expr) {
+        const r = await client.search.records({ searchExpression: { expression: expr }, page: 1, pageSize: 1 })
+        if (r.ok) {
+          const data = r.data as unknown as { totalCount?: number; items?: unknown[] }
+          survivorStillDuplicate = (data.totalCount ?? data.items?.length ?? 0) > 0
         }
       }
     }
 
-    // Drop the deleted duplicate; drop the survivor too only if it's no longer flagged.
     const removeIds = new Set<string>([duplicate.id])
     if (selectedRecord && !survivorStillDuplicate) removeIds.add(selectedRecord.id)
     setRecords((prev) => prev.filter((r) => !removeIds.has(r.id)))
@@ -349,19 +475,17 @@ export default function DuplicatesPage() {
     setModalOpen(false)
     setDuplicate(null)
     setSelectedRecord(null)
-  }, [client, duplicate, selectedRecord, fieldDefs, matchMode])
+  }, [client, duplicate, selectedRecord, matchMode, matchNames])
 
   const handleRecordClick = useCallback((rec: AprimoRecord) => {
-    console.log("[duplicates] clicked record:", rec)
-    console.log("[duplicates] record._embedded:", rec._embedded)
-    console.log("[duplicates] masterfilelatestversion:", rec._embedded?.masterfilelatestversion)
-    console.log("[duplicates] duplicateInfo:", (rec._embedded?.masterfilelatestversion as { duplicateInfo?: unknown } | undefined)?.duplicateInfo)
     setSelectedRecord(rec)
     setDuplicate(null)
     setDupError(null)
+    setLinkedAssets(new Map())
     setModalOpen(true)
     resolveDuplicate(rec)
-  }, [resolveDuplicate])
+    resolveLinkedAssets([rec])
+  }, [resolveDuplicate, resolveLinkedAssets])
 
   async function handleExport() {
     if (!records.length) return
@@ -396,7 +520,7 @@ export default function DuplicatesPage() {
                   value={expression}
                   onChange={(e) => setExpression(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") search(expression) }}
-                  placeholder={DUPLICATE_EXPRESSION}
+                  placeholder={`FieldName("_Checksum") = "..."`}
                   className="h-9 text-sm font-mono"
                 />
                 <Button size="sm" variant="outline" className="h-9" onClick={() => search(expression)} disabled={loading || !expression.trim()}>
@@ -436,7 +560,7 @@ export default function DuplicatesPage() {
                       size="sm"
                       variant="outline"
                       className="h-7 text-xs px-2"
-                      onClick={() => search(expression)}
+                      onClick={loadDuplicates}
                       disabled={loading}
                     >
                       <RefreshCw className="h-3.5 w-3.5 mr-1" />
@@ -500,6 +624,7 @@ export default function DuplicatesPage() {
                   </div>
                 </div>
 
+                {listNote && <p className="text-xs text-muted-foreground mb-1 print:hidden">{listNote}</p>}
                 <p className="text-xs text-muted-foreground mb-2 print:hidden">Click an asset to compare its metadata with its duplicate.</p>
 
                 {viewMode === "table"
@@ -524,6 +649,7 @@ export default function DuplicatesPage() {
         error={dupError}
         onApply={handleApplyMerge}
         onDelete={handleDeleteDuplicate}
+        linkedAssets={linkedAssets}
       />
     </div>
   )
