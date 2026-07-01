@@ -7,13 +7,11 @@ import { useAprimo } from "@/context/aprimo-context"
 import { Expander } from "aprimo-js"
 import type { Record as AprimoSDKRecord, FileVersion } from "aprimo-js/model"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { LayoutGrid, List, RefreshCw } from "lucide-react"
 import { RecordsTable } from "@/components/records-table"
 import { RecordsGrid } from "@/components/records-grid"
 import { DuplicateCompareModal, type MergePick } from "@/components/duplicate-compare-modal"
-import { exportToExcel } from "@/lib/export"
 import type { AprimoRecord, FieldDef, ClassificationNode, OptionItem } from "@/models/aprimo"
 
 const PAGE_SIZE = 100
@@ -129,17 +127,14 @@ function mergeRecordLinkLocalizedValues(
 export default function DuplicatesPage() {
   const { client, isConnected, selectedLanguageId } = useAprimo()
 
-  const [expression, setExpression] = useState("")
   const [records, setRecords] = useState<AprimoRecord[]>([])
   const [totalCount, setTotalCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
-  const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasSearched, setHasSearched] = useState(false)
   const [listNote, setListNote] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<"table" | "grid">("grid")
   const [matchMode, setMatchMode] = useState<MatchMode>("checksum")
-  const [gridShowPreview, setGridShowPreview] = useState(false)
   const [gridShowContentType, setGridShowContentType] = useState(true)
   const [gridShowStatus, setGridShowStatus] = useState(true)
 
@@ -199,52 +194,6 @@ export default function DuplicatesPage() {
     [checksumField, filenameField]
   )
 
-  // Paginate through every record matching the search expression.
-  const runExpression = useCallback(async (expr: string) => {
-    if (!client) return { items: [] as AprimoRecord[], total: 0 }
-    const expander = Expander.create()
-      .for<AprimoSDKRecord>("Record").expand("fields", "masterfilelatestversion")
-      .for<FileVersion>("FileVersion").expand("thumbnail", "preview")
-
-    const collected: AprimoRecord[] = []
-    let total = 0
-    let page = 1
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const result = await client.search.records(
-        { searchExpression: { expression: expr }, page, pageSize: PAGE_SIZE },
-        expander
-      )
-      if (!result.ok) throw new Error(result.error?.message ?? "Search failed")
-      const data = result.data as unknown as { items?: AprimoRecord[]; totalCount?: number }
-      const items = data?.items ?? []
-      total = data?.totalCount ?? collected.length + items.length
-      collected.push(...items)
-      if (items.length < PAGE_SIZE || collected.length >= MAX_RESULTS) break
-      page += 1
-    }
-    return { items: collected, total }
-  }, [client])
-
-  const search = useCallback(async (expr: string) => {
-    const trimmed = expr.trim()
-    if (!trimmed) return
-    setLoading(true)
-    setError(null)
-    setHasSearched(true)
-    try {
-      const { items, total } = await runExpression(trimmed)
-      setRecords(items)
-      setTotalCount(total)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Search failed")
-      setRecords([])
-      setTotalCount(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [runExpression])
-
   // Build the list by faceting on the field the match mode selects (checksum for
   // "checksum"/"both", filename for "filename"): aggregate distinct values, keep
   // those occurring more than once, then fetch the records that share them. For
@@ -277,7 +226,6 @@ export default function DuplicatesPage() {
       if (!facetRes.ok) throw new Error(facetRes.error?.message ?? "Facet search failed")
 
       const data = facetRes.data as unknown as { facets?: Array<{ name?: string; values?: unknown[] }> }
-      console.log("[duplicates] facet response:", data.facets)
       const facet = (data.facets ?? [])[0]
 
       // Parse defensively — a facet value may be a string or an object with a count.
@@ -487,19 +435,6 @@ export default function DuplicatesPage() {
     resolveLinkedAssets([rec])
   }, [resolveDuplicate, resolveLinkedAssets])
 
-  async function handleExport() {
-    if (!records.length) return
-    setExporting(true)
-    setError(null)
-    try {
-      await exportToExcel(records, [], [], { selectedLanguageId })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Export failed")
-    } finally {
-      setExporting(false)
-    }
-  }
-
   const ctx = { classificationsById, optionItemsByField, selectedLanguageId }
 
   return (
@@ -510,25 +445,6 @@ export default function DuplicatesPage() {
           <p className="text-sm text-muted-foreground">Connect to your Aprimo environment to view duplicate assets.</p>
         ) : (
           <>
-            {/* Advanced override — editable search expression. */}
-            <details className="mb-6 max-w-2xl text-sm">
-              <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-                Advanced: edit search expression
-              </summary>
-              <div className="mt-2 flex items-center gap-2">
-                <Input
-                  value={expression}
-                  onChange={(e) => setExpression(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") search(expression) }}
-                  placeholder={`FieldName("_Checksum") = "..."`}
-                  className="h-9 text-sm font-mono"
-                />
-                <Button size="sm" variant="outline" className="h-9" onClick={() => search(expression)} disabled={loading || !expression.trim()}>
-                  Run
-                </Button>
-              </div>
-            </details>
-
             {loading && <p className="text-sm text-muted-foreground">Finding duplicate assets…</p>}
 
             {error && <p className="text-sm text-destructive mb-4">{error}</p>}
@@ -566,25 +482,8 @@ export default function DuplicatesPage() {
                       <RefreshCw className="h-3.5 w-3.5 mr-1" />
                       Refresh
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs px-2"
-                      onClick={handleExport}
-                      disabled={exporting}
-                    >
-                      {exporting ? "Exporting…" : "Export to Excel"}
-                    </Button>
                     {viewMode === "grid" && (
                       <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs px-2"
-                          onClick={() => setGridShowPreview((v) => !v)}
-                        >
-                          {gridShowPreview ? "Thumbnail" : "Preview"}
-                        </Button>
                         <Button
                           size="sm"
                           variant={gridShowContentType ? "secondary" : "outline"}
@@ -628,8 +527,8 @@ export default function DuplicatesPage() {
                 <p className="text-xs text-muted-foreground mb-2 print:hidden">Click an asset to compare its metadata with its duplicate.</p>
 
                 {viewMode === "table"
-                  ? <RecordsTable records={records} tableFields={[]} fieldDefs={[]} ctx={ctx} onRecordClick={handleRecordClick} />
-                  : <RecordsGrid records={records} tableFields={[]} fieldDefs={[]} ctx={ctx} showPreview={gridShowPreview} showContentType={gridShowContentType} showStatus={gridShowStatus} compact showFileInfo onRecordClick={handleRecordClick} />
+                  ? <RecordsTable records={records} tableFields={[]} fieldDefs={[]} ctx={ctx} showFileInfo onRecordClick={handleRecordClick} />
+                  : <RecordsGrid records={records} tableFields={[]} fieldDefs={[]} ctx={ctx} showPreview={false} showContentType={gridShowContentType} showStatus={gridShowStatus} compact showFileInfo onRecordClick={handleRecordClick} />
                 }
               </>
             )}

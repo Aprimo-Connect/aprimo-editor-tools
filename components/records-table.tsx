@@ -6,6 +6,11 @@ function getThumbnailUri(record: AprimoRecord): string | undefined {
   return record._embedded?.masterfilelatestversion?._embedded?.thumbnail?.uri
 }
 
+function getFileInfo(record: AprimoRecord): { fileName?: string; checksum?: number } {
+  const fv = record._embedded?.masterfilelatestversion as { fileName?: string; crc32?: number } | undefined
+  return { fileName: fv?.fileName, checksum: fv?.crc32 }
+}
+
 function getFieldValue(record: AprimoRecord, fieldName: string, ctx?: FieldValueContext): string {
   const field = record._embedded?.fields?.items?.find((f) => f.fieldName === fieldName)
   if (!field?.localizedValues?.length) return ""
@@ -47,17 +52,21 @@ interface RecordsTableProps {
   tableFields: string[]
   fieldDefs: FieldDef[]
   ctx: FieldValueContext
+  /** Show the master file's filename + checksum columns. */
+  showFileInfo?: boolean
   /** When provided, rows become clickable. */
   onRecordClick?: (record: AprimoRecord) => void
 }
 
-export function RecordsTable({ records, tableFields, fieldDefs, ctx, onRecordClick }: RecordsTableProps) {
+export function RecordsTable({ records, tableFields, fieldDefs, ctx, showFileInfo, onRecordClick }: RecordsTableProps) {
   return (
     <table className="mt-4 w-full text-sm border-collapse">
       <thead>
         <tr className="border-b text-left">
           <th className="pb-2 pr-4 font-medium w-20"></th>
           <th className="pb-2 pr-4 font-medium">ID</th>
+          {showFileInfo && <th className="pb-2 pr-4 font-medium">Filename</th>}
+          {showFileInfo && <th className="pb-2 pr-4 font-medium">Checksum</th>}
           <th className="pb-2 pr-4 font-medium">Content Type</th>
           <th className="pb-2 pr-4 font-medium">Status</th>
           {tableFields.map((f) => (
@@ -80,6 +89,8 @@ export function RecordsTable({ records, tableFields, fieldDefs, ctx, onRecordCli
                 : <div className="w-16 h-16 bg-muted rounded" />}
             </td>
             <td className="py-2 pr-4 font-mono text-xs">{record.id}</td>
+            {showFileInfo && <td className="py-2 pr-4">{getFileInfo(record).fileName ?? "-"}</td>}
+            {showFileInfo && <td className="py-2 pr-4 font-mono text-xs">{getFileInfo(record).checksum ?? "-"}</td>}
             <td className="py-2 pr-4">{record.contentType ?? "-"}</td>
             <td className="py-2 pr-4">{record.status ?? "-"}</td>
             {tableFields.map((f) => (

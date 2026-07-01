@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, type ReactNode } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import type { AprimoRecord, FieldDef, FieldValueContext } from "@/models/aprimo"
 
@@ -277,6 +277,7 @@ export function DuplicateCompareModal({
       <DialogContent className="max-w-[90vw] sm:max-w-[90vw] w-[90vw] max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Duplicate comparison</DialogTitle>
+          <DialogDescription>Compare this asset's metadata with its duplicate and choose which values to keep.</DialogDescription>
         </DialogHeader>
 
         {/* Column headers */}
