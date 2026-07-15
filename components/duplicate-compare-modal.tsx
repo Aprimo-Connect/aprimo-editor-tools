@@ -10,7 +10,6 @@ const RL_SEP = "; "
 const RL_SPLIT = /[;,]/
 // RecordLink relationship types that can hold only a single record — no merge.
 const SINGLE_LINK_TYPES = new Set(["OneParentOneChild", "ManyParentsOneChild"])
-const ROW_H = "h-9"
 
 function getThumbnailUri(record?: AprimoRecord | null): string | undefined {
   return record?._embedded?.masterfilelatestversion?._embedded?.thumbnail?.uri
@@ -206,7 +205,7 @@ export function DuplicateCompareModal({
     const ids = raw.split(RL_SPLIT).map((s) => s.trim()).filter(Boolean)
     if (ids.length === 0) return "-"
     return (
-      <span className="inline-flex items-center gap-2">
+      <span className="flex flex-wrap items-center gap-2">
         {ids.map((id) => {
           const a = linkedAssets?.get(id)
           return (
@@ -228,7 +227,7 @@ export function DuplicateCompareModal({
       <button
         type="button"
         onClick={() => setSelections((s) => ({ ...s, [row.name]: side }))}
-        className={`rounded px-2 py-0.5 whitespace-nowrap transition-colors ${
+        className={`rounded px-2 py-0.5 text-left break-words transition-colors ${
           selected ? "bg-primary/10 ring-1 ring-primary font-medium" : "opacity-60 hover:opacity-100 hover:bg-muted"
         }`}
         title={selected ? "Selected" : "Click to use this value"}
@@ -244,11 +243,11 @@ export function DuplicateCompareModal({
     if (column === "b" && loading) return null
     const selectable = row.diff && !row.readOnly && !!duplicate
     if (!selectable) {
-      return <span className="whitespace-nowrap">{cellContent(row, column === "a" ? row.a : row.b)}</span>
+      return <span className="break-words">{cellContent(row, column === "a" ? row.a : row.b)}</span>
     }
     if (column === "a") return chip(row, "a", cellContent(row, row.a), row.canMerge ? "This" : undefined)
     return (
-      <div className="flex items-center gap-3 whitespace-nowrap">
+      <div className="flex flex-wrap items-start gap-3">
         {chip(row, "b", cellContent(row, row.b), row.canMerge ? "Dup" : undefined)}
         {row.canMerge && chip(row, "merge", cellContent(row, row.merged), "Merge")}
       </div>
@@ -256,21 +255,6 @@ export function DuplicateCompareModal({
   }
 
   const rowBg = (row: Row) => (row.diff ? "bg-amber-50 dark:bg-amber-950/30" : "")
-  // RecordLink rows render thumbnails, so they need a taller row to stay aligned.
-  const rowH = (row: Row) => (row.dataType === "RecordLink" ? "h-14" : ROW_H)
-
-  // One vertically-stacked, horizontally-scrolling value column.
-  const ValueColumn = ({ column }: { column: "a" | "b" }) => (
-    <div className="flex-1 min-w-0 overflow-x-auto">
-      <div className="w-max min-w-full">
-        {rows.map((row, i) => (
-          <div key={`${column}-${row.label}-${i}`} className={`${rowH(row)} flex items-center px-2 border-b last:border-0 ${rowBg(row)}`}>
-            {valueContent(row, column)}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -280,46 +264,50 @@ export function DuplicateCompareModal({
           <DialogDescription>Compare this asset's metadata with its duplicate and choose which values to keep.</DialogDescription>
         </DialogHeader>
 
-        {/* Column headers */}
-        <div className="flex border-b text-sm font-medium">
-          <div className="w-44 shrink-0 pb-2 pr-4">Field</div>
-          <div className="flex-1 min-w-0 pb-2 pr-4">
-            <div className="flex items-center gap-2">
-              {thumbA ? <img src={thumbA} alt="" className="w-12 h-12 object-cover rounded" /> : <div className="w-12 h-12 bg-muted rounded" />}
-              <span>This asset</span>
-            </div>
-          </div>
-          <div className="flex-1 min-w-0 pb-2 pr-4">
-            <div className="flex items-center gap-2">
-              {loading ? (
-                <div className="w-12 h-12 bg-muted rounded animate-pulse" />
-              ) : thumbB ? (
-                <img src={thumbB} alt="" className="w-12 h-12 object-cover rounded" />
-              ) : (
-                <div className="w-12 h-12 bg-muted rounded" />
-              )}
-              <span>{loading ? "Finding duplicate…" : duplicate ? "Duplicate" : "No duplicate found"}</span>
-            </div>
-          </div>
-        </div>
-
         {error && <p className="py-2 text-destructive text-xs">{error}</p>}
 
-        {/* Body: one shared vertical scroll (outer); each value column scrolls
-            horizontally on its own. The inner flex grows to content height so the
-            columns don't each become their own vertical scroller. */}
-        <div className="overflow-y-auto flex-1">
-          <div className="flex text-sm">
-            <div className="w-44 shrink-0">
+        {/* Fixed-height area with one shared scrollbar set — the whole table
+            scrolls together (both axes). */}
+        <div className="h-[60vh] overflow-scroll border-y">
+          <table className="w-full min-w-[900px] table-fixed text-sm border-collapse">
+            <colgroup>
+              <col className="w-48" />
+              <col />
+              <col />
+            </colgroup>
+            <thead className="sticky top-0 bg-background z-10">
+              <tr className="border-b text-left align-bottom font-medium">
+                <th className="py-2 px-2">Field</th>
+                <th className="py-2 px-2">
+                  <div className="flex items-center gap-2">
+                    {thumbA ? <img src={thumbA} alt="" className="w-12 h-12 object-cover rounded" /> : <div className="w-12 h-12 bg-muted rounded" />}
+                    <span>This asset</span>
+                  </div>
+                </th>
+                <th className="py-2 px-2">
+                  <div className="flex items-center gap-2">
+                    {loading ? (
+                      <div className="w-12 h-12 bg-muted rounded animate-pulse" />
+                    ) : thumbB ? (
+                      <img src={thumbB} alt="" className="w-12 h-12 object-cover rounded" />
+                    ) : (
+                      <div className="w-12 h-12 bg-muted rounded" />
+                    )}
+                    <span>{loading ? "Finding duplicate…" : duplicate ? "Duplicate" : "No duplicate found"}</span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
               {rows.map((row, i) => (
-                <div key={`label-${row.label}-${i}`} className={`${rowH(row)} flex items-center px-2 border-b last:border-0 font-medium text-muted-foreground ${rowBg(row)}`}>
-                  <span className="truncate" title={row.label}>{row.label}</span>
-                </div>
+                <tr key={`${row.label}-${i}`} className={`border-b last:border-0 ${rowBg(row)}`}>
+                  <td className="py-1.5 px-2 align-top font-medium text-muted-foreground break-words">{row.label}</td>
+                  <td className="py-1.5 px-2 align-top">{valueContent(row, "a")}</td>
+                  <td className="py-1.5 px-2 align-top">{valueContent(row, "b")}</td>
+                </tr>
               ))}
-            </div>
-            <ValueColumn column="a" />
-            <ValueColumn column="b" />
-          </div>
+            </tbody>
+          </table>
         </div>
 
         {duplicate && (

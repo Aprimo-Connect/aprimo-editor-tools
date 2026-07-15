@@ -269,6 +269,13 @@ export default function DuplicatesPage() {
         result = all.filter((rec) => (counts.get(keyOf(rec)) ?? 0) > 1)
       }
 
+      // Order the list by filename.
+      const fileNameOf = (rec: AprimoRecord) =>
+        (filenameField ? getRecordFieldValue(rec, filenameField.name) : "") ||
+        (rec._embedded?.masterfilelatestversion as { fileName?: string } | undefined)?.fileName ||
+        ""
+      result = [...result].sort((a, b) => fileNameOf(a).localeCompare(fileNameOf(b)))
+
       setRecords(result)
       setTotalCount(result.length)
       const via = matchMode === "both" ? "checksum + filename" : matchMode === "filename" ? "filename" : "checksum"
