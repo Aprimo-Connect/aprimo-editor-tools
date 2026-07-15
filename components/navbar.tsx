@@ -5,7 +5,8 @@ import Link from "next/link"
 import { useAprimo } from "@/context/aprimo-context"
 import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/page-header"
-import Image from "next/image"
+import { AprimoLogo } from "@/components/aprimo-logo"
+import { ModeToggle } from "@/components/mode-toggle"
 
 export interface NavbarProps {
   /** When false, the breadcrumb sub-bar is suppressed. Default: true. */
@@ -26,7 +27,7 @@ export function Navbar({ showPageHeader = true }: NavbarProps = {}) {
       <div className="border-b border-border px-6">
         <div className="flex items-center justify-between h-20">
           <Link href="/" className="py-2">
-            <Image src="/images/aprimo-extensions-logo-sm.png" alt="Aprimo Extensions" width={0} height={0} style={{ width: 160, height: "auto" }} loading="eager" priority />
+            <AprimoLogo />
           </Link>
 
           <div className="flex items-center gap-6 text-sm">
@@ -83,6 +84,7 @@ export function Navbar({ showPageHeader = true }: NavbarProps = {}) {
                 <Settings className="h-4 w-4" />
               </button>
             )}
+            <ModeToggle />
           </div>
         </div>
       </div>
