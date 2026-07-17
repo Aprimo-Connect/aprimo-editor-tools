@@ -16,10 +16,24 @@ async function getToken(): Promise<string | undefined> {
   return (await cookies()).get(TOKEN_COOKIE)?.value
 }
 
-// GET — connection check
+// GET — connection check (validates token with a lightweight Figma API call)
 export async function GET() {
   const token = await getToken()
-  return NextResponse.json({ connected: !!token })
+  if (!token) return NextResponse.json({ connected: false })
+  try {
+    const probe = await fetch("https://api.figma.com/v1/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (probe.status === 401 || probe.status === 403) {
+      const res = NextResponse.json({ connected: false })
+      res.cookies.delete("figma_token")
+      return res
+    }
+    return NextResponse.json({ connected: true })
+  } catch {
+    // Network error — assume connected to avoid re-auth on transient failures
+    return NextResponse.json({ connected: true })
+  }
 }
 
 // POST — list frames (action:"frames") or import a layout
@@ -39,15 +53,21 @@ export async function POST(req: NextRequest) {
   const { key, nodeId: urlNodeId } = parsed
   const nodeId = body.nodeId ?? urlNodeId
 
+  function figmaErrResponse(e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    const isAuth = msg.includes("401") || msg.includes("403")
+    const res = NextResponse.json({ error: msg }, { status: isAuth ? 401 : 500 })
+    if (isAuth) res.cookies.delete("figma_token")
+    return res
+  }
+
   // ── List frames ──────────────────────────────────────────────────────
   if (body.action === "frames") {
     try {
       const result = await listFrames(token, key)
       return NextResponse.json(result)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      const status = msg.includes("401") ? 401 : 500
-      return NextResponse.json({ error: msg }, { status })
+      return figmaErrResponse(e)
     }
   }
 
@@ -62,8 +82,6 @@ export async function POST(req: NextRequest) {
     const layout = nodeToLayout(root, imageFills, svgExports)
     return NextResponse.json({ layout })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    const status = msg.includes("401") ? 401 : 500
-    return NextResponse.json({ error: msg }, { status })
+    return figmaErrResponse(e)
   }
 }
