@@ -1546,14 +1546,18 @@ function CanvasPage() {
                         {selected.content.aprimoField !== undefined && (
                           <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-2">
                             {(() => {
-                              const visible = sourceCtMeta
+                              const visible = (sourceCtMeta
                                 ? (fieldDefs ?? []).filter((f) =>
                                     f.scope === "RecordContentGlobal" ||
                                     f.scope === "RecordContentFloating" ||
+                                    f.scope === "RecordContentClassDependent" ||
+                                    f.scope === "FileGlobal" ||
+                                    f.scope === "FileFloating" ||
                                     sourceCtMeta.directFieldIds.has(f.id) ||
                                     f.memberships.some((m) => sourceCtMeta.groupIds.has(m))
                                   )
                                 : (fieldDefs ?? [])
+                              ).sort((a, b) => a.label.localeCompare(b.label))
                               return (
                                 <label className="block">
                                   <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
