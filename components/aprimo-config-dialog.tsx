@@ -14,17 +14,9 @@ const ENV_CLIENT_ID = process.env.NEXT_PUBLIC_APRIMO_CLIENT_ID ?? ""
 const ENV_CLIENT_SECRET = process.env.NEXT_PUBLIC_APRIMO_CLIENT_SECRET ?? ""
 const ALL_FROM_ENV = !!(ENV_ENVIRONMENT && ENV_CLIENT_ID && ENV_CLIENT_SECRET)
 
-
-const ENV_VS_CONTENT_TYPE = process.env.NEXT_PUBLIC_VIDEO_STUDIO_CONTENT_TYPE ?? ""
-const ENV_VS_CLASSIFICATION_ID = process.env.NEXT_PUBLIC_VIDEO_STUDIO_CLASSIFICATION_ID ?? ""
-const ENV_VS_JSON_FIELD = process.env.NEXT_PUBLIC_VIDEO_STUDIO_JSON_FIELD ?? ""
-const ENV_ASSOCIATED_ASSETS_FIELD = process.env.NEXT_PUBLIC_ASSOCIATED_ASSETS_RECORD_LINK_FIELD ?? ""
-const SHOW_VS_SECTION = !ENV_VS_CONTENT_TYPE || !ENV_VS_CLASSIFICATION_ID || !ENV_VS_JSON_FIELD || !ENV_ASSOCIATED_ASSETS_FIELD
-
-const LS_VS_CONTENT_TYPE = "aprimo_vs_content_type"
-const LS_VS_CLASSIFICATION_ID = "aprimo_vs_classification_id"
-const LS_VS_JSON_FIELD = "aprimo_vs_json_field"
-const LS_ASSOCIATED_ASSETS_FIELD = "aprimo_associated_assets_record_link_field"
+const LS_FIGMA_CLIENT_ID = "figma_client_id"
+const LS_FIGMA_CLIENT_SECRET = "figma_client_secret"
+const LS_FIGMA_OAUTH_REDIRECT = "figma_oauth_redirect"
 
 interface ConnectionProfile {
   id: string
@@ -90,10 +82,9 @@ export function AprimoConfigDialog() {
   const [formEnvironment, setFormEnvironment] = useState("")
   const [formClientId, setFormClientId] = useState("")
   const [formClientSecret, setFormClientSecret] = useState("")
-  const [formVsContentType, setFormVsContentType] = useState("")
-  const [formVsClassificationId, setFormVsClassificationId] = useState("")
-  const [formVsJsonField, setFormVsJsonField] = useState("")
-  const [formAssociatedAssetsField, setFormAssociatedAssetsField] = useState("")
+  const [formFigmaClientId, setFormFigmaClientId] = useState("")
+  const [formFigmaClientSecret, setFormFigmaClientSecret] = useState("")
+  const [formFigmaOauthRedirect, setFormFigmaOauthRedirect] = useState("")
   const hasAttempted = useRef(false)
 
   function openDialog() {
@@ -142,11 +133,10 @@ export function AprimoConfigDialog() {
     startOAuth(profile.environment, profile.clientId, profile.clientSecret)
   }
 
-  function initVsFields() {
-    setFormVsContentType(localStorage.getItem(LS_VS_CONTENT_TYPE) ?? "")
-    setFormVsClassificationId(localStorage.getItem(LS_VS_CLASSIFICATION_ID) ?? "")
-    setFormVsJsonField(localStorage.getItem(LS_VS_JSON_FIELD) ?? "")
-    setFormAssociatedAssetsField(localStorage.getItem(LS_ASSOCIATED_ASSETS_FIELD) ?? "")
+  function initFigmaFields() {
+    setFormFigmaClientId(localStorage.getItem(LS_FIGMA_CLIENT_ID) ?? "")
+    setFormFigmaClientSecret(localStorage.getItem(LS_FIGMA_CLIENT_SECRET) ?? "")
+    setFormFigmaOauthRedirect(localStorage.getItem(LS_FIGMA_OAUTH_REDIRECT) ?? "")
   }
 
   function openNew() {
@@ -155,7 +145,7 @@ export function AprimoConfigDialog() {
     setFormEnvironment("")
     setFormClientId("")
     setFormClientSecret("")
-    initVsFields()
+    initFigmaFields()
     setView("edit")
   }
 
@@ -165,15 +155,8 @@ export function AprimoConfigDialog() {
     setFormEnvironment(profile.environment)
     setFormClientId(profile.clientId)
     setFormClientSecret(profile.clientSecret)
-    initVsFields()
+    initFigmaFields()
     setView("edit")
-  }
-
-  function persistVsFields() {
-    if (!ENV_VS_CONTENT_TYPE) localStorage.setItem(LS_VS_CONTENT_TYPE, formVsContentType.trim())
-    if (!ENV_VS_CLASSIFICATION_ID) localStorage.setItem(LS_VS_CLASSIFICATION_ID, formVsClassificationId.trim())
-    if (!ENV_VS_JSON_FIELD) localStorage.setItem(LS_VS_JSON_FIELD, formVsJsonField.trim())
-    if (!ENV_ASSOCIATED_ASSETS_FIELD) localStorage.setItem(LS_ASSOCIATED_ASSETS_FIELD, formAssociatedAssetsField.trim())
   }
 
   function buildUpdatedProfile(): ConnectionProfile {
@@ -186,13 +169,19 @@ export function AprimoConfigDialog() {
     }
   }
 
+  function persistFigmaFields() {
+    localStorage.setItem(LS_FIGMA_CLIENT_ID, formFigmaClientId.trim())
+    localStorage.setItem(LS_FIGMA_CLIENT_SECRET, formFigmaClientSecret.trim())
+    localStorage.setItem(LS_FIGMA_OAUTH_REDIRECT, formFigmaOauthRedirect.trim())
+  }
+
   function saveProfile() {
     const profile = buildUpdatedProfile()
     const updated = editing
       ? profiles.map((p) => (p.id === editing.id ? profile : p))
       : [...profiles, profile]
     persistProfiles(updated)
-    persistVsFields()
+    persistFigmaFields()
     setProfiles(updated)
     setView("list")
   }
@@ -203,7 +192,7 @@ export function AprimoConfigDialog() {
       ? profiles.map((p) => (p.id === editing.id ? profile : p))
       : [...profiles, profile]
     persistProfiles(updated)
-    persistVsFields()
+    persistFigmaFields()
     localStorage.setItem(LAST_PROFILE_KEY, profile.id)
     setOpen(false)
     startOAuth(profile.environment, profile.clientId, profile.clientSecret)
@@ -332,60 +321,40 @@ export function AprimoConfigDialog() {
                 />
               </div>
 
-              {SHOW_VS_SECTION && (
-                <div className="border-t border-border pt-4 space-y-4">
-                  <p className="text-xs font-medium text-muted-foreground">Video Studio — Save as Asset</p>
+              <div className="border-t border-border pt-4 space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground">Figma — Creative Template Import</p>
                   <p className="text-xs text-muted-foreground">These settings are shared across all connection profiles.</p>
-                  {(!ENV_VS_CONTENT_TYPE || !ENV_VS_JSON_FIELD) && (
-                    <div className="grid grid-cols-2 gap-3">
-                      {!ENV_VS_CONTENT_TYPE && (
-                        <div className="space-y-1.5">
-                          <Label htmlFor="profile-vs-content-type">Content type</Label>
-                          <Input
-                            id="profile-vs-content-type"
-                            placeholder="Video"
-                            value={formVsContentType}
-                            onChange={(e) => setFormVsContentType(e.target.value)}
-                          />
-                        </div>
-                      )}
-                      {!ENV_VS_JSON_FIELD && (
-                        <div className="space-y-1.5">
-                          <Label htmlFor="profile-vs-json-field">JSON field name</Label>
-                          <Input
-                            id="profile-vs-json-field"
-                            placeholder="VideoStudioJson"
-                            value={formVsJsonField}
-                            onChange={(e) => setFormVsJsonField(e.target.value)}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {!ENV_ASSOCIATED_ASSETS_FIELD && (
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label htmlFor="profile-associated-assets-field">Associated assets field name</Label>
+                      <Label htmlFor="figma-client-id">Client ID</Label>
                       <Input
-                        id="profile-associated-assets-field"
-                        placeholder="AssociatedAssets"
-                        value={formAssociatedAssetsField}
-                        onChange={(e) => setFormAssociatedAssetsField(e.target.value)}
+                        id="figma-client-id"
+                        placeholder="your-figma-client-id"
+                        value={formFigmaClientId}
+                        onChange={(e) => setFormFigmaClientId(e.target.value)}
                       />
                     </div>
-                  )}
-                  {!ENV_VS_CLASSIFICATION_ID && (
                     <div className="space-y-1.5">
-                      <Label htmlFor="profile-vs-classification-id">Classification ID</Label>
+                      <Label htmlFor="figma-client-secret">Client Secret</Label>
                       <Input
-                        id="profile-vs-classification-id"
-                        placeholder="00000000-0000-0000-0000-000000000000"
-                        value={formVsClassificationId}
-                        onChange={(e) => setFormVsClassificationId(e.target.value)}
+                        id="figma-client-secret"
+                        type="password"
+                        placeholder="your-figma-client-secret"
+                        value={formFigmaClientSecret}
+                        onChange={(e) => setFormFigmaClientSecret(e.target.value)}
                       />
                     </div>
-                  )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="figma-oauth-redirect">OAuth redirect URL <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                    <Input
+                      id="figma-oauth-redirect"
+                      placeholder={`${typeof window !== "undefined" ? window.location.origin : ""}/api/figma-import/oauth/callback`}
+                      value={formFigmaOauthRedirect}
+                      onChange={(e) => setFormFigmaOauthRedirect(e.target.value)}
+                    />
+                  </div>
                 </div>
-              )}
             </div>
 
             <DialogFooter className="flex-col sm:flex-row gap-2">

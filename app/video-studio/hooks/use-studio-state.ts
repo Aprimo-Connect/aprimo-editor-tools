@@ -48,13 +48,11 @@ export function useStudioState({ recordParam, basketParam }: { recordParam: stri
   const [projectNameInput, setProjectNameInput] = useState("")
 
   // VS settings availability
-  const [vsSettingsReady, setVsSettingsReady] = useState(false)
-  useEffect(() => {
-    const ct = process.env.NEXT_PUBLIC_VIDEO_STUDIO_CONTENT_TYPE || localStorage.getItem("aprimo_vs_content_type")
-    const cid = process.env.NEXT_PUBLIC_VIDEO_STUDIO_CLASSIFICATION_ID || localStorage.getItem("aprimo_vs_classification_id")
-    const jf = process.env.NEXT_PUBLIC_VIDEO_STUDIO_JSON_FIELD || localStorage.getItem("aprimo_vs_json_field")
-    setVsSettingsReady(!!(ct && cid && jf))
-  }, [])
+  const vsSettingsReady = !!(
+    process.env.NEXT_PUBLIC_VIDEO_STUDIO_CONTENT_TYPE &&
+    process.env.NEXT_PUBLIC_VIDEO_STUDIO_CLASSIFICATION_ID &&
+    process.env.NEXT_PUBLIC_VIDEO_STUDIO_JSON_FIELD
+  )
 
   // Record auto-load
   const [loadingRecord, setLoadingRecord] = useState(false)
@@ -130,7 +128,6 @@ export function useStudioState({ recordParam, basketParam }: { recordParam: stri
     recordLoadedRef.current = true
 
     const jsonFieldName = process.env.NEXT_PUBLIC_VIDEO_STUDIO_JSON_FIELD
-      || localStorage.getItem("aprimo_vs_json_field")
     if (!jsonFieldName) return
 
     setLoadingRecord(true)

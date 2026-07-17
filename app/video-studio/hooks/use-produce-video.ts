@@ -27,9 +27,6 @@ interface UseProduceVideoParams {
   initialRecordId?: string | null
 }
 
-function getVsSetting(envValue: string | undefined, lsKey: string): string {
-  return envValue || (typeof window !== "undefined" ? localStorage.getItem(lsKey) ?? "" : "")
-}
 
 function codecArgs(format: string): string[] {
   return format === "WebM"
@@ -100,8 +97,8 @@ export function useProduceVideo({
       if (!uploadResult.ok) throw new Error(uploadResult.error?.message ?? "Upload failed")
       const token = uploadResult.data!.token
 
-      const jsonFieldName = getVsSetting(process.env.NEXT_PUBLIC_VIDEO_STUDIO_JSON_FIELD, "aprimo_vs_json_field")
-      const assocAssetsFieldName = getVsSetting(process.env.NEXT_PUBLIC_ASSOCIATED_ASSETS_RECORD_LINK_FIELD, "aprimo_associated_assets_record_link_field")
+      const jsonFieldName = process.env.NEXT_PUBLIC_VIDEO_STUDIO_JSON_FIELD ?? ""
+      const assocAssetsFieldName = process.env.NEXT_PUBLIC_ASSOCIATED_ASSETS_RECORD_LINK_FIELD ?? ""
       let jsonFieldId: string | null = null
       let assocAssetsFieldId: string | null = null
       if (jsonFieldName || assocAssetsFieldName) {
@@ -149,8 +146,8 @@ export function useProduceVideo({
         toast.success("Asset updated in Aprimo", { description: filename })
       } else {
         setProduceProgress("Creating asset…")
-        const contentType = getVsSetting(process.env.NEXT_PUBLIC_VIDEO_STUDIO_CONTENT_TYPE, "aprimo_vs_content_type")
-        const classificationId = getVsSetting(process.env.NEXT_PUBLIC_VIDEO_STUDIO_CLASSIFICATION_ID, "aprimo_vs_classification_id")
+        const contentType = process.env.NEXT_PUBLIC_VIDEO_STUDIO_CONTENT_TYPE ?? ""
+        const classificationId = process.env.NEXT_PUBLIC_VIDEO_STUDIO_CLASSIFICATION_ID ?? ""
 
         const recordBody: any = {
           title: filename,

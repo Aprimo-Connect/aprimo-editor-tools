@@ -141,7 +141,7 @@ NEXT_PUBLIC_ASSOCIATED_ASSETS_RECORD_LINK_FIELD=    # RecordLink field name used
 | `NEXT_PUBLIC_VIDEO_STUDIO_JSON_FIELD` | Yes | Name of a JSON field; the full project state (clips, assets, settings) is written here so the project can be reloaded via the **Load** button |
 | `NEXT_PUBLIC_ASSOCIATED_ASSETS_RECORD_LINK_FIELD` | No | Name of a RecordLink field on the video record; all Aprimo assets used in the project (video, image, audio) are written as linked records when the video is saved or updated |
 
-If any of these variables are not set via the environment they can be entered in the **Connect** modal instead.
+All four variables must be set via environment variables — they are not configurable in the Connect modal.
 
 **Webhook actions**
 

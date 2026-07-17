@@ -1699,7 +1699,22 @@ function CanvasPage() {
             {figmaConnected === false && (
               <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
                 <p className="font-semibold text-sm mb-2">Not connected to Figma</p>
-                <a href="/api/figma-import/oauth/start" className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-full hover:opacity-90 transition-opacity no-underline">
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    const params = new URLSearchParams()
+                    const cid = localStorage.getItem("figma_client_id")
+                    const csec = localStorage.getItem("figma_client_secret")
+                    const redir = localStorage.getItem("figma_oauth_redirect")
+                    if (cid) params.set("figma_client_id", cid)
+                    if (csec) params.set("figma_client_secret", csec)
+                    if (redir) params.set("figma_oauth_redirect", redir)
+                    const qs = params.toString()
+                    window.location.href = `/api/figma-import/oauth/start${qs ? `?${qs}` : ""}`
+                  }}
+                  className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-full hover:opacity-90 transition-opacity no-underline cursor-pointer"
+                >
                   Connect to Figma →
                 </a>
               </div>
