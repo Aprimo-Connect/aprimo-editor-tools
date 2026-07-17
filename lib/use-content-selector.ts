@@ -16,6 +16,7 @@ export interface UseContentSelectorOptions {
   select?: "single" | "multiple" | "singlerendition"
   width?: number
   height?: number
+  contentTypeName?: string
 }
 
 export function useContentSelector({
@@ -24,6 +25,7 @@ export function useContentSelector({
   select = "multiple",
   width = 1200,
   height = 800,
+  contentTypeName,
 }: UseContentSelectorOptions) {
   const { connection, isConnected } = useAprimo()
   const popupRef = useRef<Window | null>(null)
@@ -67,7 +69,8 @@ export function useContentSelector({
   const open = useCallback(() => {
     if (!connection) return
     const tenantUrl = `https://${connection.environment}.dam.aprimo.com`
-    const options = { targetOrigin: window.location.origin, select }
+    const options: Record<string, unknown> = { targetOrigin: window.location.origin, select }
+    if (contentTypeName) options.limitingSearchExpression = `ContentType = "${contentTypeName}"`
     const encoded = window.btoa(JSON.stringify(options))
     const url = `${tenantUrl}/dam/selectcontent#options=${encoded}`
     const left = Math.round((screen.width - width) / 2)
@@ -80,7 +83,7 @@ export function useContentSelector({
     if (!popupRef.current) {
       console.warn("[content-selector] popup was blocked")
     }
-  }, [connection, select, width, height])
+  }, [connection, select, width, height, contentTypeName])
 
   function closePopup() {
     if (popupRef.current && !popupRef.current.closed) popupRef.current.close()

@@ -6,10 +6,16 @@ import { Navbar } from "@/components/navbar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   ArrowDown,
   ArrowUp,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Code2,
+  Minus,
+  Plus,
   Eye,
   EyeOff,
   Image as ImageIcon,
@@ -76,11 +82,12 @@ type TextContent = {
   textTransform?: string
   noWrap?: boolean       // true → white-space: nowrap (single-line auto-resize text)
   spans?: TextSpan[]     // present when the text has per-run color/weight overrides
-  aprimoField?: { id: string; name: string; contentType: string } // content type + field pair at fill time
+  aprimoField?: { id: string; name: string } // field binding — filled from source asset at fill time
 }
 type ImageContent = {
   src: string
   fit: Fit
+  source?: "asset" | "free"
 }
 type ShapeContent = {
   shape: "rectangle" | "ellipse"
@@ -429,6 +436,22 @@ function CanvasPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showJson, setShowJson] = useState(false)
+  const [collapsedShapes, setCollapsedShapes] = useState<Set<string>>(new Set())
+  const toggleCollapsed = useCallback((id: string) => {
+    setCollapsedShapes((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }, [])
+
+  const [layersOpen, setLayersOpen] = useState(true)
+  const [propertiesOpen, setPropertiesOpen] = useState(true)
+
+  const [zoom, setZoom] = useState<number | null>(null)
+  const displayScale = zoom ?? 1
+  const zoomIn  = useCallback(() => setZoom((z) => Math.min(4,   Math.round(((z ?? 1) + 0.1) * 100) / 100)), [])
+  const zoomOut = useCallback(() => setZoom((z) => Math.max(0.1, Math.round(((z ?? 1) - 0.1) * 100) / 100)), [])
 
   // Keep layouts in a ref so saveToAprimo always reads the latest without being recreated.
   const layoutsRef = useRef(layouts)
@@ -439,6 +462,13 @@ function CanvasPage() {
   savedRecordIdRef.current = savedRecordId
   const [loadingItem, setLoadingItem] = useState(false)
   const hasLoadedItem = useRef(false)
+
+  const [sourceContentTypeId, setSourceContentTypeId] = useState("")
+  const [sourceContentTypeName, setSourceContentTypeName] = useState("")
+  const sourceContentTypeIdRef = useRef(sourceContentTypeId)
+  sourceContentTypeIdRef.current = sourceContentTypeId
+  const sourceContentTypeNameRef = useRef(sourceContentTypeName)
+  sourceContentTypeNameRef.current = sourceContentTypeName
 
   const saveToAprimo = useCallback(async () => {
     if (!client) { toast.error("Not connected to Aprimo."); return }
@@ -478,7 +508,14 @@ function CanvasPage() {
         }
       }
 
-      const jsonValue = JSON.stringify(layoutsRef.current)
+      const jsonValue = JSON.stringify({
+        version: 1,
+        ...(sourceContentTypeIdRef.current && {
+          sourceContentTypeId: sourceContentTypeIdRef.current,
+          sourceContentTypeName: sourceContentTypeNameRef.current,
+        }),
+        layouts: layoutsRef.current,
+      })
       const existingId = savedRecordIdRef.current
 
       if (existingId) {
@@ -537,6 +574,7 @@ function CanvasPage() {
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
   }, [saveToAprimo])
+
   // Canvas renderer — redraws the active layout whenever it changes.
   const canvasRef = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
@@ -610,15 +648,17 @@ function CanvasPage() {
         const jsonStr = (match as any)?.localizedValues?.[0]?.value as string | undefined
         if (!jsonStr) throw new Error("No template data found on this record.")
 
-        const parsed: unknown = JSON.parse(jsonStr)
-        if (!Array.isArray(parsed) || !(parsed[0] as Record<string, unknown>)?.layers) {
+        const parsed = JSON.parse(jsonStr) as { sourceContentTypeId?: string; sourceContentTypeName?: string; layouts?: unknown }
+        if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.layouts)) {
           throw new Error("Record does not contain valid template data.")
         }
 
-        setLayouts(parsed as Layout[])
+        setLayouts(parsed.layouts as Layout[])
         setActiveIdx(0)
         setSelectedId(null)
         setSavedRecordId(itemId)
+        setSourceContentTypeId(parsed.sourceContentTypeId ?? "")
+        setSourceContentTypeName(parsed.sourceContentTypeName ?? "")
         toast.success("Template loaded.")
       } catch (err) {
         toast.error(`Could not load template: ${err instanceof Error ? err.message : String(err)}`)
@@ -692,25 +732,26 @@ function CanvasPage() {
       const ids = [...figmaSelectedIds]
       // If none selected, import the frame embedded in the URL itself.
       const nodeIds = ids.length > 0 ? ids : [undefined]
-      const results = await Promise.all(
+      const responses = await Promise.all(
         nodeIds.map((nodeId) =>
           fetch("/api/figma-import", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ url: figmaUrl, ...(nodeId ? { nodeId } : {}) }),
-          }).then((r) => r.json())
+          }).then(async (r) => ({ status: r.status, data: await r.json() }))
         )
       )
 
-      for (const data of results) {
+      for (const { status, data } of responses) {
         if (data.error) {
-          if (results.some((d) => d.status === 401)) setFigmaConnected(false)
+          if (status === 401) setFigmaConnected(false)
           toast.error(data.error)
           return
         }
       }
+      const results = responses.map((r) => r.data)
 
-      const imported = results.filter((d) => d.layout).map((d) => d.layout as Layout)
+      const imported = results.filter((d: { layout?: Layout }) => d.layout).map((d: { layout?: Layout }) => d.layout as Layout)
       if (imported.length === 0) { toast.error("No canvas layout returned."); return }
 
       // Each frame gets its own canvas tab.
@@ -748,17 +789,21 @@ function CanvasPage() {
   }, [client, contentTypes, loadingContentTypes])
 
   // Aprimo field definitions — lazy-loaded once when first needed for bindings.
-  const [fieldDefs, setFieldDefs] = useState<{ id: string; name: string }[] | null>(null)
+  type FieldDef = { id: string; name: string; label: string; scope: string; memberships: string[] }
+  const [fieldDefs, setFieldDefs] = useState<FieldDef[] | null>(null)
   const [loadingFieldDefs, setLoadingFieldDefs] = useState(false)
   const loadFieldDefs = useCallback(async () => {
     if (!client || fieldDefs !== null || loadingFieldDefs) return
     setLoadingFieldDefs(true)
     try {
-      const defs: { id: string; name: string }[] = []
+      const defs: FieldDef[] = []
       for await (const result of client.fieldDefinitions.getPaged()) {
         if (!result.ok) break
-        const items = (result.data?.items ?? []) as unknown as { id: string; name: string; dataType?: string }[]
-        defs.push(...items.filter((f) => f.id && f.name && TEXT_FIELD_TYPES.has(f.dataType ?? "")))
+        const items = (result.data?.items ?? []) as unknown as { id: string; name: string; label?: string; dataType?: string; scope?: string; memberships?: string[] }[]
+        defs.push(...items
+          .filter((f) => f.id && f.name && TEXT_FIELD_TYPES.has(f.dataType ?? ""))
+          .map((f) => ({ id: f.id, name: f.name, label: f.label || f.name, scope: f.scope ?? "", memberships: f.memberships ?? [] }))
+        )
       }
       setFieldDefs(defs)
     } catch {
@@ -767,6 +812,31 @@ function CanvasPage() {
       setLoadingFieldDefs(false)
     }
   }, [client, fieldDefs, loadingFieldDefs])
+
+  // Source content type metadata — direct field IDs + group IDs — reloads on sourceContentTypeId change.
+  const [sourceCtMeta, setSourceCtMeta] = useState<{ directFieldIds: Set<string>; groupIds: Set<string> } | null>(null)
+  useEffect(() => {
+    if (!client || !sourceContentTypeId) { setSourceCtMeta(null); return }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await client.contentTypes.getById(sourceContentTypeId)
+        if (cancelled || !res.ok) return
+        const ct = res.data as unknown as {
+          registeredFields?: { fieldId: string }[]
+          registeredFieldGroups?: { fieldGroupId: string }[]
+        }
+        const directFieldIds = new Set((ct.registeredFields ?? []).map((f) => f.fieldId))
+        const groupIds = new Set(
+          (ct.registeredFieldGroups ?? []).map(
+            (g) => (g as { fieldGroupId?: string; id?: string }).fieldGroupId ?? (g as { id?: string }).id ?? ""
+          ).filter(Boolean)
+        )
+        if (!cancelled) setSourceCtMeta({ directFieldIds, groupIds })
+      } catch { /* non-fatal — fall back to all fields */ }
+    })()
+    return () => { cancelled = true }
+  }, [client, sourceContentTypeId])
 
   // --- layer mutation helpers (recursive over the layer tree) ---
   const patchLayer = useCallback((id: string, patch: Partial<Layer>) => {
@@ -898,51 +968,68 @@ function CanvasPage() {
   }
 
   // Recursive layers-panel row (indented tree; shape children nested under it).
-  const renderRow = (l: Layer, depth: number): ReactNode => (
-    <div key={l.id}>
-      <div
-        onClick={() => setSelectedId(l.id)}
-        style={{ paddingLeft: 8 + depth * 12 }}
-        className={cn(
-          "flex items-center gap-1.5 rounded py-1 pr-2 text-xs cursor-pointer",
-          selectedId === l.id ? "bg-primary/15" : "hover:bg-muted/60"
-        )}
-      >
-        {l.type === "text" ? (
-          <Type className="h-3.5 w-3.5 shrink-0" />
-        ) : l.type === "image" ? (
-          <ImageIcon className="h-3.5 w-3.5 shrink-0" />
-        ) : l.type === "shape" ? (
-          <Square className="h-3.5 w-3.5 shrink-0" />
-        ) : (
-          <MousePointerClick className="h-3.5 w-3.5 shrink-0" />
-        )}
-        <span className="min-w-0 flex-1 truncate">{l.name}</span>
-        <button onClick={(e) => { e.stopPropagation(); patchLayer(l.id, { visible: !l.visible }) }} title="Visibility">
-          {l.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5 text-muted-foreground/50" />}
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); patchLayer(l.id, { locked: !l.locked }) }} title="Lock">
-          {l.locked ? <Lock className="h-3.5 w-3.5" /> : <LockOpen className="h-3.5 w-3.5 text-muted-foreground/50" />}
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); reorder(l.id, 1) }} title="Bring forward">
-          <ArrowUp className="h-3.5 w-3.5" />
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); reorder(l.id, -1) }} title="Send backward">
-          <ArrowDown className="h-3.5 w-3.5" />
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); indent(l.id) }} title="Move into group above">
-          <IndentIncrease className="h-3.5 w-3.5" />
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); outdent(l.id) }} title="Move out of group">
-          <IndentDecrease className="h-3.5 w-3.5" />
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); removeLayer(l.id) }} title="Delete">
-          <Trash2 className="h-3.5 w-3.5 text-destructive/80" />
-        </button>
+  const renderRow = (l: Layer, depth: number): ReactNode => {
+    const isShape = l.type === "shape"
+    const collapsed = isShape && collapsedShapes.has(l.id)
+    return (
+      <div key={l.id}>
+        <div
+          onClick={() => setSelectedId(l.id)}
+          style={{ paddingLeft: 8 + depth * 12 }}
+          className={cn(
+            "flex items-center gap-1.5 rounded py-1 pr-2 text-xs cursor-pointer",
+            selectedId === l.id ? "bg-primary/15" : "hover:bg-muted/60"
+          )}
+        >
+          {isShape ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleCollapsed(l.id) }}
+              className="shrink-0 text-muted-foreground hover:text-foreground"
+              title={collapsed ? "Expand" : "Collapse"}
+            >
+              {collapsed
+                ? <ChevronRight className="h-3.5 w-3.5" />
+                : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+          ) : (
+            <span className="h-3.5 w-3.5 shrink-0" />
+          )}
+          {l.type === "text" ? (
+            <Type className="h-3.5 w-3.5 shrink-0" />
+          ) : l.type === "image" ? (
+            <ImageIcon className="h-3.5 w-3.5 shrink-0" />
+          ) : l.type === "shape" ? (
+            <Square className="h-3.5 w-3.5 shrink-0" />
+          ) : (
+            <MousePointerClick className="h-3.5 w-3.5 shrink-0" />
+          )}
+          <span className="min-w-0 flex-1 truncate">{l.name}</span>
+          <button onClick={(e) => { e.stopPropagation(); patchLayer(l.id, { visible: !l.visible }) }} title="Visibility">
+            {l.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5 text-muted-foreground/50" />}
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); patchLayer(l.id, { locked: !l.locked }) }} title="Lock">
+            {l.locked ? <Lock className="h-3.5 w-3.5" /> : <LockOpen className="h-3.5 w-3.5 text-muted-foreground/50" />}
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); reorder(l.id, 1) }} title="Bring forward">
+            <ArrowUp className="h-3.5 w-3.5" />
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); reorder(l.id, -1) }} title="Send backward">
+            <ArrowDown className="h-3.5 w-3.5" />
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); indent(l.id) }} title="Move into group above">
+            <IndentIncrease className="h-3.5 w-3.5" />
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); outdent(l.id) }} title="Move out of group">
+            <IndentDecrease className="h-3.5 w-3.5" />
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); removeLayer(l.id) }} title="Delete">
+            <Trash2 className="h-3.5 w-3.5 text-destructive/80" />
+          </button>
+        </div>
+        {isShape && !collapsed && l.children.map((c) => renderRow(c, depth + 1))}
       </div>
-      {l.type === "shape" && l.children.map((c) => renderRow(c, depth + 1))}
-    </div>
-  )
+    )
+  }
 
   // Floating toolbar — rendered inside the canvas div, positioned above (or below) the selected layer.
   const renderFloatingToolbar = (): ReactNode => {
@@ -1277,44 +1364,118 @@ function CanvasPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_20rem]">
-            {/* Canvas */}
-            <div className="overflow-auto rounded-xl border border-border bg-[repeating-conic-gradient(#f3f4f6_0%_25%,#fff_0%_50%)] bg-[length:20px_20px] p-6">
-              <div
-                className="relative mx-auto shadow-sm"
-                style={{ width: layout.width, height: layout.height }}
-                onPointerDown={() => { setSelectedId(null); setEditingId(null) }}
-              >
-                {loadingItem && (
-                  <div className="absolute inset-0 z-50 flex items-center justify-center rounded bg-background/80 backdrop-blur-sm">
-                    <span className="text-sm text-muted-foreground">Loading template…</span>
-                  </div>
+          {/* Source asset type */}
+          <div className="flex items-center gap-4 rounded-lg border border-border bg-card px-4 py-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold">Source asset type</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Content type of Aprimo records used to fill this template.</p>
+            </div>
+            <Select
+              value={sourceContentTypeId || "__none__"}
+              onValueChange={(v) => {
+                const id = v === "__none__" ? "" : v
+                const ct = (contentTypes ?? []).find((c) => c.id === id)
+                setSourceContentTypeId(id)
+                setSourceContentTypeName(ct?.name ?? "")
+              }}
+              onOpenChange={(open) => { if (open) void loadContentTypes() }}
+            >
+              <SelectTrigger className="h-9 w-72 text-sm shrink-0">
+                <SelectValue placeholder={loadingContentTypes ? "Loading…" : "Any content type"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Any content type</SelectItem>
+                {(contentTypes ?? []).map((ct) => (
+                  <SelectItem key={ct.id} value={ct.id}>{ct.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-start gap-0">
+            {/* Left panel: layers */}
+            <aside className={cn(
+              "flex flex-col rounded-xl border border-border bg-card overflow-hidden shrink-0 transition-all duration-200",
+              layersOpen ? "w-64 opacity-100" : "w-0 border-transparent opacity-0"
+            )}>
+              <div className="border-b border-border px-3 py-2 text-sm font-semibold shrink-0">Layers</div>
+              <div className="p-1 overflow-y-auto flex-1">
+                {layout.layers.length === 0 && (
+                  <p className="p-2 text-xs text-muted-foreground">Add a layer to begin.</p>
                 )}
-                {/* Canvas for all visual rendering */}
-                <canvas
-                  ref={canvasRef}
-                  width={layout.width}
-                  height={layout.height}
-                  className="absolute inset-0"
-                />
-                {/* Transparent interaction layer on top */}
-                {layout.layers.map(renderLayer)}
-                {renderFloatingToolbar()}
+                {layout.layers.map((l) => renderRow(l, 0))}
+              </div>
+            </aside>
+
+            {/* Layers toggle handle */}
+            <button
+              onClick={() => setLayersOpen((v) => !v)}
+              title={layersOpen ? "Hide layers" : "Show layers"}
+              className="flex items-center justify-center w-5 self-stretch shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer border-none bg-transparent"
+            >
+              {layersOpen ? <ChevronLeft className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            </button>
+
+            {/* Canvas area */}
+            <div className="flex-1 min-w-0 flex flex-col gap-2">
+              {/* Zoom controls */}
+              <div className="flex items-center justify-end gap-1.5">
+                <Button variant="outline" size="icon" className="h-7 w-7" onClick={zoomOut}>
+                  <Minus className="h-3 w-3" />
+                </Button>
+                <span className="text-xs font-mono w-11 text-center text-muted-foreground">
+                  {Math.round(displayScale * 100)}%
+                </span>
+                <Button variant="outline" size="icon" className="h-7 w-7" onClick={zoomIn}>
+                  <Plus className="h-3 w-3" />
+                </Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs px-2" onClick={() => setZoom(null)}>
+                  Fit
+                </Button>
+              </div>
+
+              {/* Canvas */}
+              <div className="overflow-x-auto overflow-y-visible rounded-xl border border-border bg-[repeating-conic-gradient(#f3f4f6_0%_25%,#fff_0%_50%)] bg-[length:20px_20px] p-6 min-h-[70vh]">
+                <div style={{ width: layout.width * displayScale, height: layout.height * displayScale, position: "relative" }}>
+                  <div
+                    className="relative shadow-sm"
+                    style={{ width: layout.width, height: layout.height, transformOrigin: "top left", transform: `scale(${displayScale})` }}
+                    onPointerDown={() => { setSelectedId(null); setEditingId(null) }}
+                  >
+                    {loadingItem && (
+                      <div className="absolute inset-0 z-50 flex items-center justify-center rounded bg-background/80 backdrop-blur-sm">
+                        <span className="text-sm text-muted-foreground">Loading template…</span>
+                      </div>
+                    )}
+                    {/* Canvas for all visual rendering */}
+                    <canvas
+                      ref={canvasRef}
+                      width={layout.width}
+                      height={layout.height}
+                      className="absolute inset-0"
+                    />
+                    {/* Transparent interaction layer on top */}
+                    {layout.layers.map(renderLayer)}
+                    {renderFloatingToolbar()}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Right panel: layers + properties */}
-            <aside className="flex flex-col gap-4">
-              <div className="rounded-xl border border-border bg-card">
-                <div className="border-b border-border px-3 py-2 text-sm font-semibold">Layers</div>
-                <div className="p-1">
-                  {layout.layers.length === 0 && (
-                    <p className="p-2 text-xs text-muted-foreground">Add a layer to begin. Select a shape to nest layers inside it.</p>
-                  )}
-                  {layout.layers.map((l) => renderRow(l, 0))}
-                </div>
-              </div>
+            {/* Properties toggle handle */}
+            <button
+              onClick={() => setPropertiesOpen((v) => !v)}
+              title={propertiesOpen ? "Hide properties" : "Show properties"}
+              className="flex items-center justify-center w-5 self-stretch shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer border-none bg-transparent"
+            >
+              {propertiesOpen ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+            </button>
 
+            {/* Right panel: properties */}
+            <aside className={cn(
+              "flex flex-col gap-4 overflow-y-auto shrink-0 transition-all duration-200",
+              propertiesOpen ? "w-[17rem] opacity-100" : "w-0 opacity-0 overflow-hidden"
+            )}>
               {selected && (
                 <div className="space-y-2 rounded-xl border border-border bg-card p-3 text-xs">
                   <div className="text-sm font-semibold">Properties</div>
@@ -1367,7 +1528,7 @@ function CanvasPage() {
                           <button
                             onClick={() => {
                               if (!selected.content.aprimoField) {
-                                patchContent(selected.id, { aprimoField: { id: "", name: "", contentType: "" } })
+                                patchContent(selected.id, { aprimoField: { id: "", name: "" } })
                                 void loadFieldDefs()
                               }
                             }}
@@ -1384,49 +1545,44 @@ function CanvasPage() {
 
                         {selected.content.aprimoField !== undefined && (
                           <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-2">
-                            <label className="block">
-                              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Content type</span>
-                              <select
-                                value={selected.content.aprimoField.contentType}
-                                onFocus={() => void loadContentTypes()}
-                                onChange={(e) =>
-                                  patchContent(selected.id, {
-                                    aprimoField: { ...selected.content.aprimoField!, contentType: e.target.value },
-                                  })
-                                }
-                                className="mt-0.5 h-7 w-full rounded-md border border-border bg-background px-2 text-xs"
-                              >
-                                <option value="">Select content type…</option>
-                                {loadingContentTypes && <option disabled value="__loading__">Loading…</option>}
-                                {contentTypes?.map((ct) => (
-                                  <option key={ct.id} value={ct.name}>{ct.name}</option>
-                                ))}
-                              </select>
-                            </label>
-                            <label className="block">
-                              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Field</span>
-                              <select
-                                value={selected.content.aprimoField.id}
-                                onFocus={() => void loadFieldDefs()}
-                                onChange={(e) => {
-                                  const def = fieldDefs?.find((f) => f.id === e.target.value)
-                                  if (def)
-                                    patchContent(selected.id, {
-                                      aprimoField: { ...selected.content.aprimoField!, id: def.id, name: def.name },
-                                    })
-                                }}
-                                className="mt-0.5 h-7 w-full rounded-md border border-border bg-background px-2 text-xs"
-                              >
-                                <option value="">Select field…</option>
-                                {loadingFieldDefs && <option disabled value="__loading__">Loading…</option>}
-                                {fieldDefs?.map((f) => (
-                                  <option key={f.id} value={f.id}>{f.name}</option>
-                                ))}
-                              </select>
-                            </label>
+                            {(() => {
+                              const visible = sourceCtMeta
+                                ? (fieldDefs ?? []).filter((f) =>
+                                    f.scope === "RecordContentGlobal" ||
+                                    f.scope === "RecordContentFloating" ||
+                                    sourceCtMeta.directFieldIds.has(f.id) ||
+                                    f.memberships.some((m) => sourceCtMeta.groupIds.has(m))
+                                  )
+                                : (fieldDefs ?? [])
+                              return (
+                                <label className="block">
+                                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                    Field{sourceCtMeta ? ` (${visible.length})` : ""}
+                                  </span>
+                                  <select
+                                    value={selected.content.aprimoField.id}
+                                    onFocus={() => void loadFieldDefs()}
+                                    onChange={(e) => {
+                                      const def = fieldDefs?.find((f) => f.id === e.target.value)
+                                      if (def)
+                                        patchContent(selected.id, {
+                                          aprimoField: { id: def.id, name: def.name },
+                                        })
+                                    }}
+                                    className="mt-0.5 h-7 w-full rounded-md border border-border bg-background px-2 text-xs"
+                                  >
+                                    <option value="">Select field…</option>
+                                    {loadingFieldDefs && <option disabled value="__loading__">Loading…</option>}
+                                    {visible.map((f) => (
+                                      <option key={f.id} value={f.id}>{f.label}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                              )
+                            })()}
                             {selected.content.aprimoField.id && (
                               <p className="text-[10px] text-muted-foreground">
-                                Filled from <strong className="text-foreground">{selected.content.aprimoField.name}</strong> on <strong className="text-foreground">{selected.content.aprimoField.contentType || "any"}</strong> records. Text below is a preview fallback.
+                                Value filled from <strong className="text-foreground">{selected.content.aprimoField.name}</strong> when using Fill from record.
                               </p>
                             )}
                           </div>
@@ -1574,10 +1730,33 @@ function CanvasPage() {
                   )}
                   {selected.type === "image" && (
                     <div className="space-y-2 border-t border-border pt-2">
-                      <label className="block">
-                        <span className="text-muted-foreground">Image URL</span>
-                        <Input value={selected.content.src} onChange={(e) => patchContent(selected.id, { src: e.target.value })} placeholder="https://…" className="mt-1 h-8 text-xs" />
-                      </label>
+                      <div className="space-y-1.5">
+                        <span className="text-muted-foreground">Source</span>
+                        <div className="flex gap-1.5">
+                          {(["asset", "free"] as const).map((mode) => (
+                            <button key={mode}
+                              onClick={() => patchContent(selected.id, { source: mode })}
+                              className={cn(
+                                "flex-1 rounded-md border px-2 py-1 text-xs transition-colors",
+                                (selected.content.source ?? "asset") === mode
+                                  ? "border-primary bg-primary/10 text-primary font-medium"
+                                  : "border-border text-muted-foreground hover:border-ring"
+                              )}
+                            >
+                              {mode === "asset" ? "Source asset" : "Free select"}
+                            </button>
+                          ))}
+                        </div>
+                        {(selected.content.source ?? "asset") === "asset" && (
+                          <p className="text-[10px] text-muted-foreground">Image filled from the source asset when using Fill from record.</p>
+                        )}
+                      </div>
+                      {(selected.content.source ?? "asset") === "free" && (
+                        <label className="block">
+                          <span className="text-muted-foreground">Preview URL</span>
+                          <Input value={selected.content.src} onChange={(e) => patchContent(selected.id, { src: e.target.value })} placeholder="https://…" className="mt-1 h-8 text-xs" />
+                        </label>
+                      )}
                       <select
                         value={selected.content.fit}
                         onChange={(e) => patchContent(selected.id, { fit: e.target.value as Fit })}

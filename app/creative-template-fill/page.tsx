@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { ImageIcon, Minus, Plus, Save, Type } from "lucide-react"
+import { ImageIcon, Link2, Minus, Plus, Save, Type } from "lucide-react"
 import { Navbar } from "@/components/navbar"
 import { toast } from "sonner"
 import { Expander } from "aprimo-js"
@@ -25,9 +25,7 @@ const OUTPUT_CLASSIFICATION_ID = process.env.NEXT_PUBLIC_CANVAS_TEMPLATE_CLASSIF
 type TextEdit  = { type: "text";  text: string; spans?: TextSpan[] }
 type ImageEdit = { type: "image"; src: string; fit?: Fit }
 type FieldEdit = TextEdit | ImageEdit
-type PendingField =
-  | { id: string; kind: "image" }
-  | { id: string; kind: "text-field"; aprimoField: { id: string; name: string; contentType: string } }
+type PendingField = { id: string; kind: "image" }
 
 // ── Tree helpers ─────────────────────────────────────────────────────────────
 function collectEditable(layers: Layer[]): Layer[] {
@@ -71,10 +69,17 @@ function FillCanvasTemplatePage() {
   const [selected, setSelected]     = useState<CanvasTemplate | null>(null)
   const [loadingItem, setLoadingItem] = useState(false)
   const hasLoadedItem = useRef(false)
+  const [sourceContentTypeId, setSourceContentTypeId] = useState("")
+  const [sourceContentTypeName, setSourceContentTypeName] = useState("")
   const [tabIdx, setTabIdx]         = useState(0)
   const [edits, setEdits]           = useState<Record<string, FieldEdit>>({})
   const pendingFieldRef = useRef<PendingField | null>(null)
-  const [loadingFieldId, setLoadingFieldId] = useState<string | null>(null)
+  const [bulkLoading, setBulkLoading] = useState(false)
+  const pendingFillRef = useRef<{ fieldValues: any[]; imageUri?: string } | null>(null)
+  const [tenantLanguages, setTenantLanguages] = useState<{ id: string; name: string }[]>([])
+  const [languagePickOpen, setLanguagePickOpen] = useState(false)
+  const [languageOptions, setLanguageOptions] = useState<{ id: string; name: string }[]>([])
+  const [selectedLanguageId, setSelectedLanguageId] = useState("")
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -97,6 +102,20 @@ function FillCanvasTemplatePage() {
         for await (const page of client.contentTypes.getPaged({ pageSize: 1000 }))
           for (const ct of page.data?.items ?? []) cts.push({ id: ct.id, name: ct.labels?.[0]?.value || ct.name })
         if (!cancelled) setContentTypes(cts.sort((a, b) => a.name.localeCompare(b.name)))
+      } catch { /* non-fatal */ }
+    })()
+    return () => { cancelled = true }
+  }, [client])
+
+  // Load tenant languages for the language picker.
+  useEffect(() => {
+    if (!client) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await client.languages.get({ pageSize: 200 })
+        if (!cancelled && res.ok)
+          setTenantLanguages((res.data?.items ?? []).map((l) => ({ id: l.id, name: l.name || l.culture })))
       } catch { /* non-fatal */ }
     })()
     return () => { cancelled = true }
@@ -146,11 +165,16 @@ function FillCanvasTemplatePage() {
         const jsonStr = fieldMatch.localizedValues?.[0]?.value
         if (!jsonStr) throw new Error("Template field is empty.")
 
-        const parsedLayouts = JSON.parse(jsonStr)
+        const parsed = JSON.parse(jsonStr) as { sourceContentTypeId?: string; sourceContentTypeName?: string; layouts?: unknown }
+        if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.layouts)) {
+          throw new Error("Record does not contain valid template data.")
+        }
+        setSourceContentTypeId(parsed.sourceContentTypeId ?? "")
+        setSourceContentTypeName(parsed.sourceContentTypeName ?? "")
         const syntheticTemplate: CanvasTemplate = {
           id: recordFromParam,
           name: "Canvas Template",
-          layouts: parsedLayouts,
+          layouts: parsed.layouts as Layout[],
           savedAt: Date.now(),
         }
         pickTemplate(syntheticTemplate)
@@ -214,7 +238,6 @@ function FillCanvasTemplatePage() {
     const pending = pendingFieldRef.current
     if (!record || !pending || pending.kind !== "image") return
     pendingFieldRef.current = null
-    setLoadingFieldId(pending.id)
     try {
       // singlerendition mode — rendition.publicuri is the chosen rendition URL.
       const url = (record.rendition as any)?.publicuri as string | undefined
@@ -222,41 +245,115 @@ function FillCanvasTemplatePage() {
       else toast.error("This rendition has no public URI.")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load from Aprimo.")
-    } finally {
-      setLoadingFieldId(null)
     }
   }, [setImageSrc])
 
-  const handleFieldAccept = useCallback(async (selection: SelectedRecord[]) => {
+  const applyFill = useCallback((languageId: string) => {
+    const pending = pendingFillRef.current
+    if (!pending) return
+    pendingFillRef.current = null
+    const { fieldValues, imageUri } = pending
+    setEdits((prev) => {
+      const next = { ...prev }
+      for (const field of fields) {
+        if (field.type === "image" && (field as ImageLayer).content.source !== "free") {
+          if (imageUri) {
+            const prevFit = prev[field.id]?.type === "image" ? (prev[field.id] as ImageEdit).fit : undefined
+            next[field.id] = { type: "image", src: imageUri, fit: prevFit }
+          }
+        }
+        if (field.type === "text") {
+          const af = (field as TextLayer).content.aprimoField
+          if (af) {
+            const match = fieldValues.find((fv: any) => fv.id === af.id)
+            const lv = (match?.localizedValues ?? []).find((v: any) => v.languageId === languageId)
+            const value: string | undefined = lv?.value ?? match?.localizedValues?.[0]?.value
+            if (value !== undefined) next[field.id] = { type: "text", text: value }
+          }
+        }
+      }
+      return next
+    })
+  }, [fields])
+
+  const handleBulkAccept = useCallback(async (selection: SelectedRecord[]) => {
     const record = selection[0]
-    const pending = pendingFieldRef.current
-    if (!record || !pending || pending.kind !== "text-field" || !client) return
-    pendingFieldRef.current = null
-    setLoadingFieldId(pending.id)
+    if (!record || !client) return
+    setBulkLoading(true)
     try {
-      const exp = (Expander as any).create().for("Record").expand("fields")
-      const r = await client.records.getById(record.id, exp)
+      const hasAssetImages = fields.some(
+        (f) => f.type === "image" && (f as ImageLayer).content.source !== "free"
+      )
+
+      // Expand fields for text binding + masterfilelatestversion → publicuris for images
+      const exp = (Expander as any).create()
+        .for("Record").expand("fields", "masterfilelatestversion")
+        .for("FileVersion").expand("publicuris")
+      const r = await client.records.getById(record.id, exp, "*")
       if (!r.ok) throw new Error(r.error?.message ?? "Could not load record.")
-      const items: any[] = (r.data as any)?._embedded?.fields?.items ?? []
-      const match = items.find((f: any) => f.id === pending.aprimoField.id)
-      const value: string | undefined = match?.localizedValues?.[0]?.value
-      if (value !== undefined) setTextEdit(pending.id, value)
-      else toast.error("That record has no value for this field.")
+
+      const data = r.data as any
+      const fieldValues: any[] = data?._embedded?.fields?.items ?? []
+
+      let imageUri: string | undefined
+      if (hasAssetImages) {
+        imageUri = pickPublicUri(data)
+        if (!imageUri) {
+          const orderRes = await client.orders.create({
+            type: "download",
+            targets: [{ recordId: record.id }],
+          } as any)
+          if (orderRes.ok) {
+            let order = orderRes.data as any
+            for (let i = 0; i < 10 && order?.status !== "Success" && order?.status !== "Failed"; i++) {
+              await new Promise((res) => setTimeout(res, 600))
+              const poll = await client.orders.getById(order.id)
+              if (poll.ok) order = poll.data
+            }
+            imageUri = (order?.deliveredFiles as string[] | undefined)?.[0]
+          }
+        }
+      }
+
+      // Collect unique language IDs from bound text fields
+      const boundTextFields = fields.filter(
+        (f): f is TextLayer => f.type === "text" && !!(f as TextLayer).content.aprimoField
+      )
+      const langIds = new Set<string>()
+      for (const f of boundTextFields) {
+        const match = fieldValues.find((fv: any) => fv.id === f.content.aprimoField!.id)
+        for (const lv of (match?.localizedValues ?? [])) {
+          if (lv.languageId) langIds.add(lv.languageId)
+        }
+      }
+
+      pendingFillRef.current = { fieldValues, imageUri }
+
+      if (langIds.size > 1) {
+        const opts = [...langIds].map((id) => {
+          const lang = tenantLanguages.find((l) => l.id === id)
+          return { id, name: lang?.name ?? id }
+        })
+        setLanguageOptions(opts)
+        setSelectedLanguageId(opts[0].id)
+        setLanguagePickOpen(true)
+      } else {
+        applyFill([...langIds][0] ?? "")
+      }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load from Aprimo.")
+      toast.error(err instanceof Error ? err.message : "Failed to fill from record.")
     } finally {
-      setLoadingFieldId(null)
+      setBulkLoading(false)
     }
-  }, [client, setTextEdit])
+  }, [client, fields, tenantLanguages, applyFill])
 
   const imageSelector = useContentSelector({ select: "singlerendition", onAccept: handleImageAccept })
-  const fieldSelector = useContentSelector({ select: "single",          onAccept: handleFieldAccept })
+  const bulkSelector  = useContentSelector({ select: "single", onAccept: handleBulkAccept, contentTypeName: sourceContentTypeName || undefined })
 
   const [zoom, setZoom] = useState<number | null>(null)
-  const fitScale = liveLayout ? Math.min(1, 680 / liveLayout.width) : 1
-  const displayScale = zoom ?? fitScale
-  const zoomIn  = useCallback(() => setZoom((z) => Math.min(3, Math.round(((z ?? fitScale) + 0.25) * 100) / 100)), [fitScale])
-  const zoomOut = useCallback(() => setZoom((z) => Math.max(0.1, Math.round(((z ?? fitScale) - 0.25) * 100) / 100)), [fitScale])
+  const displayScale = zoom ?? 1
+  const zoomIn  = useCallback(() => setZoom((z) => Math.min(3, Math.round(((z ?? 1) + 0.1) * 100) / 100)), [])
+  const zoomOut = useCallback(() => setZoom((z) => Math.max(0.1, Math.round(((z ?? 1) - 0.1) * 100) / 100)), [])
 
   useEffect(() => { setZoom(null) }, [selected, tabIdx])
 
@@ -337,6 +434,11 @@ function FillCanvasTemplatePage() {
       {/* Header bar */}
       <div className="border-b border-border px-6 py-3 flex items-center gap-3">
         <span className="text-sm font-semibold">{selected.name}</span>
+        {sourceContentTypeName && (
+          <span className="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
+            {sourceContentTypeName}
+          </span>
+        )}
         <div className="ml-auto">
           <Button size="sm" onClick={openSaveDialog}>
             <Save className="h-4 w-4" /> Save asset
@@ -396,9 +498,17 @@ function FillCanvasTemplatePage() {
 
         {/* ── Fields panel ── */}
         <aside className="flex flex-col overflow-hidden border-l border-border bg-card">
-          <div className="px-4 py-3 border-b border-border">
-            <p className="text-sm font-semibold">Content fields</p>
-            <p className="text-xs text-muted-foreground">{fields.length} editable field{fields.length !== 1 ? "s" : ""} on this canvas</p>
+          <div className="px-4 py-3 border-b border-border flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold">Content fields</p>
+              <p className="text-xs text-muted-foreground">{fields.length} editable field{fields.length !== 1 ? "s" : ""}</p>
+            </div>
+            <Button size="sm" variant="outline" className="w-full h-8 text-xs gap-1.5"
+              onClick={() => bulkSelector.open()}
+              disabled={!bulkSelector.canOpen || bulkLoading || fields.length === 0}>
+              <Link2 className="h-3.5 w-3.5" />
+              {bulkLoading ? "Filling…" : "Fill from record"}
+            </Button>
           </div>
           <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5">
             {fields.length === 0 && (
@@ -418,11 +528,10 @@ function FillCanvasTemplatePage() {
                 </div>
 
                 {field.type === "text" && (() => {
-                  const edit      = edits[field.id]
-                  const spans     = (edit?.type === "text" ? edit.spans : undefined) ?? (field as TextLayer).content.spans
-                  const text      = (edit?.type === "text" ? edit.text  : undefined) ?? (field as TextLayer).content.text
-                  const af        = (field as TextLayer).content.aprimoField
-                  const isLoading = loadingFieldId === field.id
+                  const edit  = edits[field.id]
+                  const spans = (edit?.type === "text" ? edit.spans : undefined) ?? (field as TextLayer).content.spans
+                  const text  = (edit?.type === "text" ? edit.text  : undefined) ?? (field as TextLayer).content.text
+                  const af    = (field as TextLayer).content.aprimoField
                   if (spans && spans.length > 0) {
                     return (
                       <div className="flex flex-col gap-1.5 p-3 bg-muted/40 rounded-lg border border-border">
@@ -443,14 +552,9 @@ function FillCanvasTemplatePage() {
                   return (
                     <div className="flex flex-col gap-1.5">
                       {af && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground font-mono flex-1 truncate">{af.contentType} · {af.name}</span>
-                          <Button size="sm" variant="outline" className="flex-shrink-0 h-7 text-xs"
-                            onClick={() => { pendingFieldRef.current = { id: field.id, kind: "text-field", aprimoField: af }; fieldSelector.open() }}
-                            disabled={!fieldSelector.canOpen || isLoading}>
-                            {isLoading ? "Loading…" : "Select record"}
-                          </Button>
-                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          Bound to <span className="font-medium text-foreground">{af.name}</span>
+                        </p>
                       )}
                       <Textarea value={text} readOnly={!!af}
                         onChange={af ? undefined : (e) => setTextEdit(field.id, e.target.value, undefined)}
@@ -464,36 +568,55 @@ function FillCanvasTemplatePage() {
                   const imageEdit = edits[field.id]?.type === "image" ? edits[field.id] as ImageEdit : undefined
                   const src       = imageEdit?.src ?? (field as ImageLayer).content.src
                   const fit       = imageEdit?.fit ?? (field as ImageLayer).content.fit ?? "cover"
-                  const isLoading = loadingFieldId === field.id
+                  const isFree    = (field as ImageLayer).content.source === "free"
                   return (
                     <div className="flex flex-col gap-2">
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="flex-1 h-8 text-xs"
-                          onClick={() => { pendingFieldRef.current = { id: field.id, kind: "image" }; imageSelector.open() }}
-                          disabled={!imageSelector.canOpen || isLoading}>
-                          <ImageIcon className="h-3 w-3" />
-                          {isLoading ? "Loading…" : "Browse DAM"}
-                        </Button>
-                        <div className="flex gap-0.5 bg-muted rounded-md p-0.5">
-                          {fitOpts.map((f) => (
-                            <button key={f} onClick={() => setImageFit(field.id, f)}
-                              className={cn(
-                                "px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer border-none capitalize",
-                                fit === f ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:text-foreground"
-                              )}>
-                              {f}
-                            </button>
-                          ))}
+                      {isFree ? (
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" className="flex-1 h-8 text-xs"
+                            onClick={() => { pendingFieldRef.current = { id: field.id, kind: "image" }; imageSelector.open() }}
+                            disabled={!imageSelector.canOpen}>
+                            <ImageIcon className="h-3 w-3" />
+                            Browse DAM
+                          </Button>
+                          <div className="flex gap-0.5 bg-muted rounded-md p-0.5">
+                            {fitOpts.map((f) => (
+                              <button key={f} onClick={() => setImageFit(field.id, f)}
+                                className={cn(
+                                  "px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer border-none capitalize",
+                                  fit === f ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:text-foreground"
+                                )}>
+                                {f}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] text-muted-foreground">Filled from source asset</p>
+                          <div className="flex gap-0.5 bg-muted rounded-md p-0.5">
+                            {fitOpts.map((f) => (
+                              <button key={f} onClick={() => setImageFit(field.id, f)}
+                                className={cn(
+                                  "px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer border-none capitalize",
+                                  fit === f ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:text-foreground"
+                                )}>
+                                {f}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {src && (
                         <div className="w-full h-28 rounded-lg overflow-hidden border border-border">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={src} alt={field.name} className="w-full h-full" style={{ objectFit: fit }} />
                         </div>
                       )}
-                      <Input value={src} onChange={(e) => setImageSrc(field.id, e.target.value)}
-                        placeholder="or paste a URL…" className="h-8 text-xs font-mono" />
+                      {isFree && (
+                        <Input value={src} onChange={(e) => setImageSrc(field.id, e.target.value)}
+                          placeholder="or paste a URL…" className="h-8 text-xs font-mono" />
+                      )}
                     </div>
                   )
                 })()}
@@ -502,6 +625,36 @@ function FillCanvasTemplatePage() {
           </div>
         </aside>
       </div>
+
+      {/* ── Language picker dialog ── */}
+      <Dialog open={languagePickOpen} onOpenChange={(o) => { if (!o) { pendingFillRef.current = null } setLanguagePickOpen(o) }}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Select language</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 py-1">
+            {languageOptions.map((lang) => (
+              <label key={lang.id} className="flex items-center gap-2.5 cursor-pointer rounded-lg border border-border px-3 py-2 hover:bg-muted/50 transition-colors">
+                <input
+                  type="radio"
+                  name="language"
+                  value={lang.id}
+                  checked={selectedLanguageId === lang.id}
+                  onChange={() => setSelectedLanguageId(lang.id)}
+                  className="accent-primary"
+                />
+                <span className="text-sm">{lang.name}</span>
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { pendingFillRef.current = null; setLanguagePickOpen(false) }}>Cancel</Button>
+            <Button onClick={() => { applyFill(selectedLanguageId); setLanguagePickOpen(false) }} disabled={!selectedLanguageId}>
+              Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Save asset dialog ── */}
       <Dialog open={saveOpen} onOpenChange={(o) => { if (!saving) setSaveOpen(o) }}>

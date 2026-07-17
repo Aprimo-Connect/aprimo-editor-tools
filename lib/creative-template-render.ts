@@ -14,9 +14,9 @@ export type TextContent = {
   text: string; fontFamily: string; fontSize: number; fontWeight: number
   color: string; align: Align; lineHeight: number; textTransform?: string
   noWrap?: boolean; spans?: TextSpan[]
-  aprimoField?: { id: string; name: string; contentType: string }
+  aprimoField?: { id: string; name: string }
 }
-export type ImageContent = { src: string; fit: Fit }
+export type ImageContent = { src: string; fit: Fit; source?: "asset" | "free" }
 export type ShapeContent = {
   shape: "rectangle" | "ellipse"; fillType: "color" | "none" | "image"
   fill: string; src: string; imageFit: Fit; stroke: string; strokeWidth: number; radius: number
