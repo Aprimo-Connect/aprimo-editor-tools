@@ -16,24 +16,10 @@ async function getToken(): Promise<string | undefined> {
   return (await cookies()).get(TOKEN_COOKIE)?.value
 }
 
-// GET — connection check (validates token with a lightweight Figma API call)
+// GET — connection check
 export async function GET() {
   const token = await getToken()
-  if (!token) return NextResponse.json({ connected: false })
-  try {
-    const probe = await fetch("https://api.figma.com/v1/me", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (probe.status === 401 || probe.status === 403) {
-      const res = NextResponse.json({ connected: false })
-      res.cookies.delete("figma_token")
-      return res
-    }
-    return NextResponse.json({ connected: true })
-  } catch {
-    // Network error — assume connected to avoid re-auth on transient failures
-    return NextResponse.json({ connected: true })
-  }
+  return NextResponse.json({ connected: !!token })
 }
 
 // POST — list frames (action:"frames") or import a layout
