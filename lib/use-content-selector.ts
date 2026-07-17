@@ -13,7 +13,7 @@ export interface SelectedRecord {
 export interface UseContentSelectorOptions {
   onAccept: (selection: SelectedRecord[]) => void
   onCancel?: () => void
-  select?: "single" | "multiple"
+  select?: "single" | "multiple" | "singlerendition"
   width?: number
   height?: number
 }

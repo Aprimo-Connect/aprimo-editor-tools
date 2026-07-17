@@ -17,5 +17,10 @@
   "videostudiobasketlocal": "http://localhost:3000/video-studio",
   "templateslocal": "http://localhost:3000/templates",
   "templatesbasketlocal": "http://localhost:3000/templates",
-  "basketeditorlocal": "http://localhost:3000/basket-editor"
+  "basketeditorlocal": "http://localhost:3000/basket-editor",
+
+  "creativetemplatecreate": "https://aprimo-editor-tools.vercel.app/creative-template-create",
+  "creativetemplatefill": "https://aprimo-editor-tools.vercel.app/creative-template-fill",
+  "creativetemplatefilllocal": "http://localhost:3000/creative-template-fill",
+  "creativetemplatecreatelocal": "http://localhost:3000/creative-template-create"
 }

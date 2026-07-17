@@ -1,0 +1,69 @@
+import { NextRequest, NextResponse } from "next/server"
+import { cookies } from "next/headers"
+import {
+  parseFigmaUrl,
+  listFrames,
+  fetchDocument,
+  getImageFills,
+  collectVectorIds,
+  getSvgExports,
+  nodeToLayout,
+} from "@/lib/figma-api"
+
+const TOKEN_COOKIE = "figma_token"
+
+async function getToken(): Promise<string | undefined> {
+  return (await cookies()).get(TOKEN_COOKIE)?.value
+}
+
+// GET — connection check
+export async function GET() {
+  const token = await getToken()
+  return NextResponse.json({ connected: !!token })
+}
+
+// POST — list frames (action:"frames") or import a layout
+export async function POST(req: NextRequest) {
+  const token = await getToken()
+  if (!token) return NextResponse.json({ error: "Not connected to Figma" }, { status: 401 })
+
+  let body: { url?: string; action?: string; nodeId?: string }
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+  }
+
+  const parsed = parseFigmaUrl(body.url ?? "")
+  if (!parsed) return NextResponse.json({ error: "Invalid Figma URL" }, { status: 400 })
+  const { key, nodeId: urlNodeId } = parsed
+  const nodeId = body.nodeId ?? urlNodeId
+
+  // ── List frames ──────────────────────────────────────────────────────
+  if (body.action === "frames") {
+    try {
+      const result = await listFrames(token, key)
+      return NextResponse.json(result)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      const status = msg.includes("401") ? 401 : 500
+      return NextResponse.json({ error: msg }, { status })
+    }
+  }
+
+  // ── Import layout ─────────────────────────────────────────────────────
+  try {
+    const { root } = await fetchDocument(token, key, nodeId)
+    const [imageFills, vectorIds] = await Promise.all([
+      getImageFills(token, key),
+      Promise.resolve(collectVectorIds(root)),
+    ])
+    const svgExports = await getSvgExports(token, key, vectorIds)
+    const layout = nodeToLayout(root, imageFills, svgExports)
+    return NextResponse.json({ layout })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    const status = msg.includes("401") ? 401 : 500
+    return NextResponse.json({ error: msg }, { status })
+  }
+}

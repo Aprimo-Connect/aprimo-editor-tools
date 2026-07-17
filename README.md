@@ -217,6 +217,69 @@ Import metadata from an Excel file into Aprimo records.
 - Choose the target language for localized field values
 - Saves to Aprimo using `records.update()` with built-in rate-limit handling
 
+### Creative Template
+
+A two-page workflow for designing reusable canvas layouts and filling them with DAM content to produce finished assets.
+
+#### Creative Template Create (`/creative-template-create`)
+
+A visual canvas editor for building multi-layer templates. Designs can be imported from Figma or HTML, or built from scratch.
+
+**Layers**
+
+| Type | Notes |
+|------|-------|
+| Text | Font family, size, weight, color, alignment, line height, text transform; optional Figma color-run spans |
+| Image | URL or DAM asset; cover / contain / fill mode |
+| Shape | Rectangle or ellipse; solid fill, image fill, or none; stroke and corner radius; child layers |
+| Button | Label, font, background color, border radius |
+
+- Layers can be locked (fixed in the final asset) or left editable for fill-time override
+- **Text field binding** — a text layer can be set to _Free text_ (editable directly at fill time) or bound to an _Aprimo field_ (content type + field name pair). At fill time the bound field's value is pulled from the selected record automatically
+- **HTML import** — paste raw HTML markup; the browser performs a real layout pass and the element tree is converted to canvas layers; a live scaled preview renders alongside the source
+- **Figma import** — paste a Figma file URL and personal access token to pull frames, groups, and auto-layout nodes directly into the canvas; effects (drop shadows, blurs) are imported
+- **Save to Aprimo** — the canvas layout JSON is stored in a long-text field on a new Aprimo record; a PNG thumbnail is attached as the master file. Re-saving updates the existing record
+- **Edit existing template** — opening the page with `?record=<recordId>` loads an existing canvas template record for editing
+
+**Environment variables**
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_CANVAS_TEMPLATE_CONTENT_TYPE` | Yes | Content type name or ID assigned to canvas template records |
+| `NEXT_PUBLIC_CANVAS_TEMPLATE_JSON_FIELD` | Yes | Name of the long-text field used to store the canvas layout JSON |
+| `NEXT_PUBLIC_CANVAS_TEMPLATE_CLASSIFICATION_ID` | Yes | Classification ID added to every new canvas template record |
+
+**Webhook actions**
+
+| Action | Mode | Description |
+|--------|------|-------------|
+| `creativetemplatecreate` | Single-record (`&mode=singleitem`) | Open an existing canvas template record for editing |
+
+#### Creative Template Fill (`/creative-template-fill`)
+
+Opens a saved canvas template and lets users fill its editable fields, then saves the result as a new Aprimo asset. Always opened via page hook from a canvas template record.
+
+**Editable fields**
+
+| Field type | Fill behaviour |
+|-----------|----------------|
+| Text — free text | Editable textarea |
+| Text — Aprimo field binding | **Select record** opens the Aprimo content selector (single mode); the bound metadata field value is fetched from the chosen record automatically; textarea is read-only |
+| Image | **Browse DAM** opens the Aprimo content selector (single rendition mode) to pick a specific rendition; fit toggle (cover / contain / fill); URL input as fallback |
+
+- Multi-canvas templates show a tab strip; zoom controls (in / out / fit) are provided
+- **Save asset** — renders the filled canvas to PNG and creates a new Aprimo record; prompts for an asset name and content type before saving
+
+**Webhook actions**
+
+| Action | Mode | Description |
+|--------|------|-------------|
+| `creativetemplatefill` | Single-record (`&mode=singleitem`) | Open a canvas template record for fill — loads the layout from the record's JSON field |
+
+> Both canvas template actions use the same `NEXT_PUBLIC_CANVAS_TEMPLATE_*` environment variables as the create page.
+
+---
+
 ### Duplicate Assets
 
 Find and resolve duplicate assets by matching on the master file's **checksum** and/or **filename**. Opened from the home page or the navbar (no page hook required) — it loads automatically on connect.
@@ -278,14 +341,16 @@ NEXT_PUBLIC_APRIMO_CLIENT_SECRET=your-client-secret
 
 ```json
 {
-  "mybasket":           "https://your-deployment.vercel.app/my-basket",
-  "basketeditor":       "https://your-deployment.vercel.app/basket-editor",
-  "myitem":             "https://your-deployment.vercel.app/my-item",
-  "videoresizer":       "https://your-deployment.vercel.app/video-resizer",
-  "videostudiobasket":  "https://your-deployment.vercel.app/video-studio",
-  "videostudio":        "https://your-deployment.vercel.app/video-studio",
-  "templatesbasket":    "https://your-deployment.vercel.app/templates",
-  "templates":          "https://your-deployment.vercel.app/templates"
+  "mybasket":                  "https://your-deployment.vercel.app/my-basket",
+  "basketeditor":              "https://your-deployment.vercel.app/basket-editor",
+  "myitem":                    "https://your-deployment.vercel.app/my-item",
+  "videoresizer":              "https://your-deployment.vercel.app/video-resizer",
+  "videostudiobasket":         "https://your-deployment.vercel.app/video-studio",
+  "videostudio":               "https://your-deployment.vercel.app/video-studio",
+  "templatesbasket":           "https://your-deployment.vercel.app/templates",
+  "templates":                 "https://your-deployment.vercel.app/templates",
+  "creativetemplatecreate":    "https://your-deployment.vercel.app/creative-template-create",
+  "creativetemplatefill":      "https://your-deployment.vercel.app/creative-template-fill"
 }
 ```
 
@@ -301,6 +366,8 @@ The action name in Aprimo maps to a key in that file. The record or basket ID is
 | `videostudio` | Single-record | Video Studio — opens an existing project |
 | `templatesbasket` | Multi-record (basket) | Dynamic Content |
 | `templates` | Single-record | Dynamic Content |
+| `creativetemplatecreate` | Single-record | Creative Template — open existing template for editing |
+| `creativetemplatefill` | Single-record | Creative Template — fill a template and save as asset |
 
 ## Getting Started
 
@@ -334,6 +401,11 @@ NEXT_PUBLIC_VIDEO_STUDIO_CONTENT_TYPE=              # content type name or ID fo
 NEXT_PUBLIC_VIDEO_STUDIO_CLASSIFICATION_ID=         # classification ID (records require at least one)
 NEXT_PUBLIC_VIDEO_STUDIO_JSON_FIELD=                # field name used to store project state JSON
 NEXT_PUBLIC_ASSOCIATED_ASSETS_RECORD_LINK_FIELD=    # RecordLink field to link source assets (optional)
+
+# Creative Template (optional — only required if using the creative template tools)
+NEXT_PUBLIC_CANVAS_TEMPLATE_CONTENT_TYPE=           # content type name or ID for canvas template records
+NEXT_PUBLIC_CANVAS_TEMPLATE_JSON_FIELD=             # long-text field name used to store the layout JSON
+NEXT_PUBLIC_CANVAS_TEMPLATE_CLASSIFICATION_ID=      # classification ID added to every new template record
 ```
 
 ### 3. Install and run
