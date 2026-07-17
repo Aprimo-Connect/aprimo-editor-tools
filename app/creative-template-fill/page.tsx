@@ -75,9 +75,8 @@ function FillCanvasTemplatePage() {
   const [edits, setEdits]           = useState<Record<string, FieldEdit>>({})
   const pendingFieldRef = useRef<PendingField | null>(null)
   const [bulkLoading, setBulkLoading] = useState(false)
-  const pendingFillRef = useRef<{ fieldValues: any[]; imageUri?: string } | null>(null)
-  const [tenantLanguages, setTenantLanguages] = useState<{ id: string; name: string }[]>([])
-  const [languagePickOpen, setLanguagePickOpen] = useState(false)
+  const [fillData, setFillData] = useState<{ fieldValues: any[]; imageUri?: string } | null>(null)
+  const [tenantLanguages, setTenantLanguages] = useState<{ id: string; name: string; culture: string }[]>([])
   const [languageOptions, setLanguageOptions] = useState<{ id: string; name: string }[]>([])
   const [selectedLanguageId, setSelectedLanguageId] = useState("")
 
@@ -115,7 +114,7 @@ function FillCanvasTemplatePage() {
       try {
         const res = await client.languages.get({ pageSize: 200 })
         if (!cancelled && res.ok)
-          setTenantLanguages((res.data?.items ?? []).map((l) => ({ id: l.id, name: l.name || l.culture })))
+          setTenantLanguages((res.data?.items ?? []).map((l) => ({ id: l.id, name: l.name || l.culture, culture: l.culture })))
       } catch { /* non-fatal */ }
     })()
     return () => { cancelled = true }
@@ -248,11 +247,8 @@ function FillCanvasTemplatePage() {
     }
   }, [setImageSrc])
 
-  const applyFill = useCallback((languageId: string) => {
-    const pending = pendingFillRef.current
-    if (!pending) return
-    pendingFillRef.current = null
-    const { fieldValues, imageUri } = pending
+  const applyFill = useCallback((languageId: string, data: { fieldValues: any[]; imageUri?: string }) => {
+    const { fieldValues, imageUri } = data
     setEdits((prev) => {
       const next = { ...prev }
       for (const field of fields) {
@@ -292,12 +288,12 @@ function FillCanvasTemplatePage() {
       const r = await client.records.getById(record.id, exp, "*")
       if (!r.ok) throw new Error(r.error?.message ?? "Could not load record.")
 
-      const data = r.data as any
-      const fieldValues: any[] = data?._embedded?.fields?.items ?? []
+      const recData = r.data as any
+      const fieldValues: any[] = recData?._embedded?.fields?.items ?? []
 
       let imageUri: string | undefined
       if (hasAssetImages) {
-        imageUri = pickPublicUri(data)
+        imageUri = pickPublicUri(recData)
         if (!imageUri) {
           const orderRes = await client.orders.create({
             type: "download",
@@ -323,22 +319,30 @@ function FillCanvasTemplatePage() {
       for (const f of boundTextFields) {
         const match = fieldValues.find((fv: any) => fv.id === f.content.aprimoField!.id)
         for (const lv of (match?.localizedValues ?? [])) {
-          if (lv.languageId) langIds.add(lv.languageId)
+          if (lv.languageId && lv.value?.trim()) langIds.add(lv.languageId)
         }
       }
 
-      pendingFillRef.current = { fieldValues, imageUri }
+      const data = { fieldValues, imageUri }
+      setFillData(data)
 
       if (langIds.size > 1) {
         const opts = [...langIds].map((id) => {
           const lang = tenantLanguages.find((l) => l.id === id)
-          return { id, name: lang?.name ?? id }
+          return { id, name: lang?.name ?? id, culture: lang?.culture ?? "" }
         })
+        const englishOpt = opts.find(
+          (o) => o.name.toLowerCase().includes("english") || o.culture.toLowerCase().startsWith("en")
+        )
+        const defaultOpt = englishOpt ?? opts[0]
         setLanguageOptions(opts)
-        setSelectedLanguageId(opts[0].id)
-        setLanguagePickOpen(true)
+        setSelectedLanguageId(defaultOpt.id)
+        applyFill(defaultOpt.id, data)
       } else {
-        applyFill([...langIds][0] ?? "")
+        setLanguageOptions([])
+        const firstLangId = [...langIds][0] ?? ""
+        setSelectedLanguageId(firstLangId)
+        applyFill(firstLangId, data)
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to fill from record.")
@@ -509,6 +513,21 @@ function FillCanvasTemplatePage() {
               <Link2 className="h-3.5 w-3.5" />
               {bulkLoading ? "Filling…" : "Fill from record"}
             </Button>
+            {languageOptions.length > 1 && (
+              <Select value={selectedLanguageId} onValueChange={(id) => {
+                setSelectedLanguageId(id)
+                if (fillData) applyFill(id, fillData)
+              }}>
+                <SelectTrigger className="h-8 text-xs w-full">
+                  <SelectValue placeholder="Select language…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {languageOptions.map((lang) => (
+                    <SelectItem key={lang.id} value={lang.id} className="text-xs">{lang.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5">
             {fields.length === 0 && (
@@ -625,36 +644,6 @@ function FillCanvasTemplatePage() {
           </div>
         </aside>
       </div>
-
-      {/* ── Language picker dialog ── */}
-      <Dialog open={languagePickOpen} onOpenChange={(o) => { if (!o) { pendingFillRef.current = null } setLanguagePickOpen(o) }}>
-        <DialogContent className="max-w-xs">
-          <DialogHeader>
-            <DialogTitle>Select language</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-2 py-1">
-            {languageOptions.map((lang) => (
-              <label key={lang.id} className="flex items-center gap-2.5 cursor-pointer rounded-lg border border-border px-3 py-2 hover:bg-muted/50 transition-colors">
-                <input
-                  type="radio"
-                  name="language"
-                  value={lang.id}
-                  checked={selectedLanguageId === lang.id}
-                  onChange={() => setSelectedLanguageId(lang.id)}
-                  className="accent-primary"
-                />
-                <span className="text-sm">{lang.name}</span>
-              </label>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { pendingFillRef.current = null; setLanguagePickOpen(false) }}>Cancel</Button>
-            <Button onClick={() => { applyFill(selectedLanguageId); setLanguagePickOpen(false) }} disabled={!selectedLanguageId}>
-              Apply
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* ── Save asset dialog ── */}
       <Dialog open={saveOpen} onOpenChange={(o) => { if (!saving) setSaveOpen(o) }}>
