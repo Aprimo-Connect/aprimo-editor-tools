@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
+import { Fragment, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import { useSearchParams } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Button } from "@/components/ui/button"
@@ -34,6 +34,7 @@ type ColorKey = "ink" | "paper" | "clay" | "moss" | "sun"
 const PALETTE: Record<ColorKey, string> = { ink: "#181410", paper: "#F6F3EC", clay: "#2E5D4B", moss: "#8AA68F", sun: "#E8B93B" }
 const alpha = (token: ColorKey, pct: number) => `color-mix(in srgb, ${PALETTE[token]} ${pct}%, transparent)`
 import { drawLayout as canvasDrawLayout } from "@/lib/creative-template-render"
+import { htmlToLayout } from "@/lib/html-to-layout"
 
 /**
  * Content abstraction (the point of this page): a Layout is an ordered stack of
@@ -218,191 +219,14 @@ function outdentLayer(layers: Layer[], id: string): Layer[] {
 }
 
 
-// --- HTML → canvas Layout converter ---
-// Inserts the HTML into the live DOM off-screen so the browser performs real layout,
-// then uses getBoundingClientRect + getComputedStyle to get accurate positions and
-// cascaded style values. This preserves the full element hierarchy: each container
-// becomes a ShapeLayer with its children nested inside it.
+const TEXT_FIELD_TYPES = new Set(["SingleLineText", "MultiLineText", "RichText", "Html"])
 
-// Elements whose children are always rendered inline (used to detect text containers).
-const INLINE_TAGS = new Set(["SPAN", "A", "B", "I", "STRONG", "EM", "MARK", "SMALL", "SUB", "SUP", "CODE", "TIME", "ABBR"])
-// Elements that are semantically text — always become text layers regardless of children.
-const TEXT_TAGS = new Set(["H1", "H2", "H3", "H4", "H5", "H6", "P", "A", "LI", "DT", "DD", "FIGCAPTION", "BLOCKQUOTE", "CITE", "LABEL", "CAPTION", "TD", "TH"])
-// Elements that become button layers.
-const BUTTON_TAGS = new Set(["BUTTON"])
-const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "HEAD", "META", "LINK", "TITLE"])
-
-function htmlToLayout(html: string, canvasWidth: number, canvasHeight: number): Layout {
-  // Mount off-screen so the browser lays out the content at the right width.
-  const host = document.createElement("div")
-  host.style.cssText = `position:fixed;left:${-(canvasWidth + 200)}px;top:0;width:${canvasWidth}px;height:${canvasHeight}px;overflow:hidden;pointer-events:none;opacity:0`
-  host.innerHTML = html
-  document.body.appendChild(host)
-
-  try {
-    // Use the first child element as the root frame when it carries explicit dimensions
-    // (nodeToHtml wraps everything in a position:relative div), else use the host itself.
-    const maybeRoot = host.firstElementChild instanceof HTMLElement ? host.firstElementChild : null
-    const root: HTMLElement = (maybeRoot && (maybeRoot.style.width || maybeRoot.style.position)) ? maybeRoot : host
-    const rootRect = root.getBoundingClientRect()
-
-    const rootCs = getComputedStyle(root)
-    const rawBg = root.style.background || root.style.backgroundColor || rootCs.background || "#ffffff"
-    const width = Math.round(rootRect.width) || canvasWidth
-    const height = Math.round(rootRect.height) || canvasHeight
-
-    let textN = 0, imageN = 0, shapeN = 0
-
-    const walkEl = (el: HTMLElement, parentRect: DOMRect): Layer | null => {
-      if (SKIP_TAGS.has(el.tagName)) return null
-      const rect = el.getBoundingClientRect()
-      const w = Math.round(rect.width)
-      const h = Math.round(rect.height)
-      if (w <= 0 || h <= 0) return null
-
-      const x = Math.round(rect.left - parentRect.left)
-      const y = Math.round(rect.top - parentRect.top)
-      const cs = getComputedStyle(el)
-      const opRaw = parseFloat(el.style.opacity || cs.opacity)
-      const opacity = isNaN(opRaw) ? 1 : opRaw
-      const id = uid()
-      const base: LayerBase = { id, name: id, x, y, width: w, height: h, rotation: 0, opacity, visible: true, locked: true }
-
-      // <img> → image layer
-      if (el.tagName === "IMG") {
-        imageN++
-        return {
-          ...base, name: `Image ${imageN}`, type: "image",
-          content: { src: (el as HTMLImageElement).src || el.getAttribute("src") || "", fit: (cs.objectFit as Fit) || "cover" },
-        } as ImageLayer
-      }
-
-      // Div/element with a background-image URL → image layer
-      const bgImage = el.style.backgroundImage || cs.backgroundImage || ""
-      const bgUrlMatch = bgImage.match(/url\(['"]?([^'")\s]+)['"]?\)/)
-      if (bgUrlMatch) {
-        imageN++
-        const fit: Fit = cs.backgroundSize === "contain" ? "contain" : cs.backgroundSize === "100% 100%" ? "fill" : "cover"
-        return {
-          ...base, name: `Image ${imageN}`, type: "image",
-          content: { src: bgUrlMatch[1], fit },
-        } as ImageLayer
-      }
-
-      // Button layer: native <button> element, OR any leaf/inline element that has
-      // cursor:pointer + a solid background — catches <a> and styled <div> CTAs.
-      const text = (el.textContent ?? "").replace(/\s+/g, " ").trim()
-      const isLeafEl = el.childElementCount === 0
-      const onlyInlineEl = el.childElementCount > 0 && [...el.children].every(c => INLINE_TAGS.has(c.tagName))
-      const hasBg = (() => {
-        const bg = el.style.backgroundColor || el.style.background || cs.backgroundColor || cs.background || ""
-        return bg && bg !== "transparent" && bg !== "rgba(0, 0, 0, 0)"
-      })()
-      const isButtonLike = BUTTON_TAGS.has(el.tagName)
-        || ((isLeafEl || onlyInlineEl) && cs.cursor === "pointer" && hasBg && text.length > 0 && h <= 80)
-      if (isButtonLike && text) {
-        const btnN = ++textN // reuse counter so names stay unique
-        const fsRaw2 = parseFloat(cs.fontSize)
-        return {
-          ...base, name: `Button ${btnN}`, type: "button",
-          content: {
-            label: text || "Button",
-            fontFamily: cs.fontFamily || "Inter, sans-serif",
-            fontSize: Math.round(fsRaw2) || 14,
-            fontWeight: parseInt(cs.fontWeight) || 600,
-            color: cs.color || "#ffffff",
-            background: el.style.background || el.style.backgroundColor || cs.backgroundColor || "#333333",
-            radius: parseFloat(cs.borderRadius) || 8,
-          },
-        } as ButtonLayer
-      }
-
-      // Text layer when:
-      //  a) it's a semantic text element (h1, p, a, li, …), OR
-      //  b) it's a leaf node with text, OR
-      //  c) all its element children are inline (span, b, em, …) — mixed-color text runs
-      const isTextTag = TEXT_TAGS.has(el.tagName)
-      const isLeaf = isLeafEl
-      const onlyInlineKids = onlyInlineEl
-      if ((isTextTag || isLeaf || onlyInlineKids) && text) {
-        textN++
-        const fsRaw = parseFloat(cs.fontSize)
-        const lhRaw = parseFloat(cs.lineHeight)
-        const lh = !isNaN(lhRaw) && !isNaN(fsRaw) && fsRaw > 0 ? lhRaw / fsRaw : 1.2
-        const align = cs.textAlign === "center" ? "center" : cs.textAlign === "right" ? "right" : "left"
-        // Extract per-run colors from inline children (e.g. <span style="color:…">).
-        let spans: TextSpan[] | undefined
-        if (onlyInlineEl && el.childElementCount > 0) {
-          const runs: TextSpan[] = []
-          for (const child of el.children) {
-            const sc = getComputedStyle(child as HTMLElement)
-            const runText = (child.textContent ?? "").replace(/\s+/g, " ")
-            if (!runText) continue
-            const runColor = sc.color !== cs.color ? sc.color : undefined
-            const runWeight = sc.fontWeight !== cs.fontWeight ? parseInt(sc.fontWeight) || undefined : undefined
-            runs.push({ text: runText, ...(runColor ? { color: runColor } : {}), ...(runWeight !== undefined ? { fontWeight: runWeight } : {}) })
-          }
-          if (runs.some((s) => s.color || s.fontWeight !== undefined)) spans = runs
-        }
-        return {
-          ...base, name: `Text ${textN}`, type: "text",
-          content: {
-            text,
-            fontFamily: cs.fontFamily || "Inter, sans-serif",
-            fontSize: Math.round(fsRaw) || 16,
-            fontWeight: parseInt(cs.fontWeight) || 400,
-            color: cs.color || "#111111",
-            align,
-            lineHeight: Math.max(0.5, lh),
-            ...(cs.textTransform && cs.textTransform !== "none" ? { textTransform: cs.textTransform } : {}),
-            ...(spans ? { spans } : {}),
-          },
-        } as TextLayer
-      }
-
-      // Container → shape layer, children nested inside
-      shapeN++
-      const fill = el.style.background || el.style.backgroundColor || cs.backgroundColor || ""
-      const isTransparent = !fill || fill === "transparent" || fill === "rgba(0, 0, 0, 0)"
-      const borderRadius = parseFloat(cs.borderRadius) || 0
-      const isEllipse = cs.borderRadius === "50%" || (borderRadius > 0 && borderRadius >= Math.min(w, h) / 2)
-      const bw = parseFloat(cs.borderTopWidth) || 0
-      const bColor = cs.borderTopColor || "#000000"
-
-      const children: Layer[] = []
-      for (const child of el.children) {
-        if (!(child instanceof HTMLElement)) continue
-        const cl = walkEl(child, rect)
-        if (cl) children.push(cl)
-      }
-
-      return {
-        ...base, name: `Shape ${shapeN}`, type: "shape",
-        content: {
-          shape: isEllipse ? "ellipse" : "rectangle",
-          fillType: isTransparent ? "none" : "color",
-          fill: isTransparent ? "#eeeeee" : fill,
-          src: "", imageFit: "cover",
-          stroke: bColor,
-          strokeWidth: bw,
-          radius: isEllipse ? 0 : borderRadius,
-        },
-        children,
-      } as ShapeLayer
-    }
-
-    const layers: Layer[] = []
-    for (const child of root.children) {
-      if (!(child instanceof HTMLElement)) continue
-      const layer = walkEl(child, rootRect)
-      if (layer) layers.push(layer)
-    }
-
-    return { version: 1, name: "Imported from HTML", width, height, background: rawBg, layers }
-  } finally {
-    document.body.removeChild(host)
-  }
+// Split a text string into two color runs at its midpoint.
+function splitIntoRuns(text: string, color: string): TextSpan[] {
+  const mid = Math.max(1, Math.ceil(text.length / 2))
+  return [{ text: text.slice(0, mid), color }, { text: text.slice(mid), color }]
 }
+
 
 const INITIAL: Layout = {
   version: 1,
@@ -550,7 +374,11 @@ function InlineTextEditor({
   )
 }
 
-export default function CanvasPage() {
+export default function CreateTemplatePage() {
+  return <Suspense><CanvasPage /></Suspense>
+}
+
+function CanvasPage() {
   const searchParams = useSearchParams()
   const { client, connection } = useAprimo()
 
@@ -922,7 +750,6 @@ export default function CanvasPage() {
   // Aprimo field definitions — lazy-loaded once when first needed for bindings.
   const [fieldDefs, setFieldDefs] = useState<{ id: string; name: string }[] | null>(null)
   const [loadingFieldDefs, setLoadingFieldDefs] = useState(false)
-  const TEXT_FIELD_TYPES = new Set(["SingleLineText", "MultiLineText", "RichText", "Html"])
   const loadFieldDefs = useCallback(async () => {
     if (!client || fieldDefs !== null || loadingFieldDefs) return
     setLoadingFieldDefs(true)
@@ -1265,11 +1092,7 @@ export default function CanvasPage() {
                     )}
                     {/* Bootstrap color runs from current text */}
                     <button
-                      onClick={() => {
-                        const t = selected.content.text
-                        const mid = Math.max(1, Math.ceil(t.length / 2))
-                        patchContent(selected.id, { spans: [{ text: t.slice(0, mid), color: selected.content.color }, { text: t.slice(mid), color: selected.content.color }] })
-                      }}
+                      onClick={() => patchContent(selected.id, { spans: splitIntoRuns(selected.content.text, selected.content.color) })}
                       style={{ ...iconBtn(), width: "auto", padding: "0 8px", fontSize: 10, color: alpha("ink", 55) }}
                       title="Split into color runs"
                     >+ Runs</button>
@@ -1620,17 +1443,7 @@ export default function CanvasPage() {
                             className="w-full rounded-md border border-border bg-background p-2 text-xs outline-none focus:border-ring"
                           />
                           <button
-                            onClick={() => {
-                              // Split current text into two runs: first half / second half
-                              const t = selected.content.text
-                              const mid = Math.max(1, Math.ceil(t.length / 2))
-                              patchContent(selected.id, {
-                                spans: [
-                                  { text: t.slice(0, mid), color: selected.content.color },
-                                  { text: t.slice(mid), color: selected.content.color },
-                                ],
-                              })
-                            }}
+                            onClick={() => patchContent(selected.id, { spans: splitIntoRuns(selected.content.text, selected.content.color) })}
                             className="w-full rounded-md border border-dashed border-border py-1 text-[10px] text-muted-foreground hover:border-ring hover:text-foreground"
                           >
                             + Add color runs

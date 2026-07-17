@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { ImageIcon, Minus, Plus, Save, Type } from "lucide-react"
 import { Navbar } from "@/components/navbar"
@@ -59,7 +59,11 @@ function toHex(color: string): string {
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
-export default function FillCanvasTemplatePage() {
+export default function FillTemplatePage() {
+  return <Suspense><FillCanvasTemplatePage /></Suspense>
+}
+
+function FillCanvasTemplatePage() {
   const { client } = useAprimo()
   const searchParams = useSearchParams()
   const recordFromParam = searchParams.get("record")
