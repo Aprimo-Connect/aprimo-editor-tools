@@ -123,25 +123,28 @@ Choose a platform preset (YouTube, Instagram, TikTok, Facebook, LinkedIn, X, or 
 | State | Inspect the current project as JSON |
 | Load | Restore a previously saved project from JSON |
 
+**Save as Asset — Aprimo setup**
+
+Before using "Save as Asset", create the following in Aprimo:
+
+1. **A field to store the project state JSON** — create a **Multi-line text** (or JSON) field. The field's internal **name** (not its display label) goes in `NEXT_PUBLIC_VIDEO_STUDIO_JSON_FIELD`. The full project state — clips, trim points, transitions, audio, text overlays, and output settings — is serialised as JSON and written to this field on every save. It is read back when a video record is opened for editing, so the field must be read/write and must not have a character limit that would truncate the JSON.
+
+2. **A content type for video project records** — create (or designate) a content type in Aprimo for saved video projects. Register the project state JSON field on this content type. The content type's **name** or **ID** goes in `NEXT_PUBLIC_VIDEO_STUDIO_CONTENT_TYPE`. Every video saved from Video Studio is stored as a record of this content type, with the rendered MP4 attached as the master file.
+
+3. **A classification** — video project records require at least one classification. Copy the classification ID from Aprimo and set it as `NEXT_PUBLIC_VIDEO_STUDIO_CLASSIFICATION_ID`.
+
+4. **A RecordLink field for source assets** _(optional)_ — if you want Video Studio to record which Aprimo assets were used as source clips, create a **Record link** field and register it on the video content type. Set its internal name as `NEXT_PUBLIC_ASSOCIATED_ASSETS_RECORD_LINK_FIELD`. All video, image, and audio assets used in the project are written as linked records when the video is saved.
+
 **Save as Asset — environment variables**
-
-The "Save as Asset" action requires additional env vars (see `.env.local.example`):
-
-```
-NEXT_PUBLIC_VIDEO_STUDIO_CONTENT_TYPE=              # content type name or ID for the new record
-NEXT_PUBLIC_VIDEO_STUDIO_CLASSIFICATION_ID=         # classification ID (Aprimo records require at least one)
-NEXT_PUBLIC_VIDEO_STUDIO_JSON_FIELD=                # field name used to store the project state JSON
-NEXT_PUBLIC_ASSOCIATED_ASSETS_RECORD_LINK_FIELD=    # RecordLink field name used to link the source assets
-```
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `NEXT_PUBLIC_VIDEO_STUDIO_CONTENT_TYPE` | Yes | Content type name or ID assigned to the saved video record |
-| `NEXT_PUBLIC_VIDEO_STUDIO_CLASSIFICATION_ID` | Yes | Classification ID — Aprimo records require at least one |
-| `NEXT_PUBLIC_VIDEO_STUDIO_JSON_FIELD` | Yes | Name of a JSON field; the full project state (clips, assets, settings) is written here so the project can be reloaded via the **Load** button |
-| `NEXT_PUBLIC_ASSOCIATED_ASSETS_RECORD_LINK_FIELD` | No | Name of a RecordLink field on the video record; all Aprimo assets used in the project (video, image, audio) are written as linked records when the video is saved or updated |
+| `NEXT_PUBLIC_VIDEO_STUDIO_CONTENT_TYPE` | Yes | Name or ID of the Aprimo content type used for saved video project records (see setup above) |
+| `NEXT_PUBLIC_VIDEO_STUDIO_CLASSIFICATION_ID` | Yes | Classification ID added to every new video project record |
+| `NEXT_PUBLIC_VIDEO_STUDIO_JSON_FIELD` | Yes | Internal **name** (not label) of the multi-line text field that stores the full project state JSON (see setup above) |
+| `NEXT_PUBLIC_ASSOCIATED_ASSETS_RECORD_LINK_FIELD` | No | Internal name of a RecordLink field; all source assets (video, image, audio) used in the project are written as linked records |
 
-All four variables must be set via environment variables — they are not configurable in the Connect modal.
+All variables must be set via environment variables — they are not configurable in the Connect modal.
 
 **Webhook actions**
 
@@ -241,13 +244,23 @@ A visual canvas editor for building multi-layer templates. Designs can be import
 - **Save to Aprimo** — the canvas layout JSON is stored in a long-text field on a new Aprimo record; a PNG thumbnail is attached as the master file. Re-saving updates the existing record
 - **Edit existing template** — opening the page with `?record=<recordId>` loads an existing canvas template record for editing
 
+**Aprimo setup**
+
+Before using the Creative Template tools, create the following in Aprimo:
+
+1. **A field to store the layout JSON** — create a **Multi-line text** (or JSON) field in Aprimo. The field name (not its display label) goes in `NEXT_PUBLIC_CANVAS_TEMPLATE_JSON_FIELD`. The full canvas layout — every layer, its geometry, text content, image source, and Aprimo field bindings — is serialised as JSON and written to this field whenever a template is saved. It is also read back when loading a template for editing or filling, so the field must be read/write and not subject to a character limit that would truncate the JSON.
+
+2. **A content type for canvas template records** — create (or designate) a content type in Aprimo for canvas template records. Register the layout JSON field on this content type. The content type's **name** or **ID** goes in `NEXT_PUBLIC_CANVAS_TEMPLATE_CONTENT_TYPE`. Every template saved from the Create page is stored as a record of this content type.
+
+3. **A classification** — canvas template records require at least one classification. Copy the classification ID from Aprimo and set it as `NEXT_PUBLIC_CANVAS_TEMPLATE_CLASSIFICATION_ID`. All new template records and filled output assets receive this classification.
+
 **Environment variables**
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `NEXT_PUBLIC_CANVAS_TEMPLATE_CONTENT_TYPE` | Yes | Content type name or ID assigned to canvas template records |
-| `NEXT_PUBLIC_CANVAS_TEMPLATE_JSON_FIELD` | Yes | Name of the long-text field used to store the canvas layout JSON |
-| `NEXT_PUBLIC_CANVAS_TEMPLATE_CLASSIFICATION_ID` | Yes | Classification ID added to every new canvas template record |
+| `NEXT_PUBLIC_CANVAS_TEMPLATE_CONTENT_TYPE` | Yes | Name or ID of the Aprimo content type used for canvas template records (see setup above) |
+| `NEXT_PUBLIC_CANVAS_TEMPLATE_JSON_FIELD` | Yes | Internal **name** (not label) of the multi-line text field that stores the canvas layout JSON (see setup above) |
+| `NEXT_PUBLIC_CANVAS_TEMPLATE_CLASSIFICATION_ID` | Yes | Classification ID added to every new canvas template record and filled output asset |
 
 **Webhook actions**
 
