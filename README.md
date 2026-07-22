@@ -293,6 +293,37 @@ Opens a saved canvas template and lets users fill its editable fields, then save
 
 ---
 
+### Translate Video
+
+Translate a video asset into another language using the ElevenLabs Dubbing API, then save the result as a new Aprimo record. Triggered via Aprimo page hook — the record ID is passed directly as a query parameter.
+
+| Parameter | Source | Description |
+|-----------|--------|-------------|
+| `record` | Webhook (`&mode=singleitem`) | The Aprimo record ID of the source video |
+
+Webhook action: `translatevideo` with `&mode=singleitem` appended to the webhook URL.
+
+**Pipeline**
+
+1. Creates an Aprimo download order to obtain a CDN URL for the source video
+2. Submits the URL directly to the ElevenLabs Dubbing API (the file never transits the server)
+3. Polls until dubbing completes (up to 15 minutes)
+4. Downloads the dubbed video via a server-side proxy
+5. Uploads the dubbed video to Aprimo
+6. Creates a new Aprimo record; the filename is prefixed with the target language name (e.g. `[Spanish] my-video.mp4`)
+
+**Target languages**
+
+Spanish, French, German, Italian, Portuguese, Polish, Hindi, Japanese, Korean, Chinese, Arabic, Dutch, Turkish, Swedish.
+
+**Environment variables**
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ELEVENLABS_API_KEY` | Yes | ElevenLabs API key — server-side only, never exposed to the browser |
+
+---
+
 ### Duplicate Assets
 
 Find and resolve duplicate assets by matching on the master file's **checksum** and/or **filename**. Opened from the home page or the navbar (no page hook required) — it loads automatically on connect.
@@ -363,7 +394,8 @@ NEXT_PUBLIC_APRIMO_CLIENT_SECRET=your-client-secret
   "templatesbasket":           "https://your-deployment.vercel.app/templates",
   "templates":                 "https://your-deployment.vercel.app/templates",
   "creativetemplatecreate":    "https://your-deployment.vercel.app/creative-template-create",
-  "creativetemplatefill":      "https://your-deployment.vercel.app/creative-template-fill"
+  "creativetemplatefill":      "https://your-deployment.vercel.app/creative-template-fill",
+  "translatevideo":            "https://your-deployment.vercel.app/translate-video"
 }
 ```
 
@@ -381,6 +413,7 @@ The action name in Aprimo maps to a key in that file. The record or basket ID is
 | `templates` | Single-record | Dynamic Content |
 | `creativetemplatecreate` | Single-record | Creative Template — open existing template for editing |
 | `creativetemplatefill` | Single-record | Creative Template — fill a template and save as asset |
+| `translatevideo` | Single-record | Translate Video |
 
 ## Getting Started
 
@@ -419,6 +452,9 @@ NEXT_PUBLIC_ASSOCIATED_ASSETS_RECORD_LINK_FIELD=    # RecordLink field to link s
 NEXT_PUBLIC_CANVAS_TEMPLATE_CONTENT_TYPE=           # content type name or ID for canvas template records
 NEXT_PUBLIC_CANVAS_TEMPLATE_JSON_FIELD=             # long-text field name used to store the layout JSON
 NEXT_PUBLIC_CANVAS_TEMPLATE_CLASSIFICATION_ID=      # classification ID added to every new template record
+
+# ElevenLabs (optional — only required for Translate Video)
+ELEVENLABS_API_KEY=                                 # ElevenLabs API key (server-side only)
 ```
 
 ### 3. Install and run

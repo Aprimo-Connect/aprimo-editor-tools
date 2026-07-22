@@ -22,5 +22,8 @@
   "creativetemplatecreate": "https://aprimo-editor-tools.vercel.app/creative-template-create",
   "creativetemplatefill": "https://aprimo-editor-tools.vercel.app/creative-template-fill",
   "creativetemplatefilllocal": "http://localhost:3000/creative-template-fill",
-  "creativetemplatecreatelocal": "http://localhost:3000/creative-template-create"
+  "creativetemplatecreatelocal": "http://localhost:3000/creative-template-create",
+
+  "translatevideo": "https://aprimo-editor-tools.vercel.app/translate-video",
+  "translatevideolocal": "http://localhost:3000/translate-video"
 }
