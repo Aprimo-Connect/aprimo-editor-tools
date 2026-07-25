@@ -1,29 +1,16 @@
 {
-  "basketexample": "https://aprimo-editor-tools.vercel.app/my-basket",
-  "mybasket": "https://aprimo-editor-tools.vercel.app/my-basket",
-  "myitem": "https://aprimo-editor-tools.vercel.app/my-item",
-  "videoresizer": "https://aprimo-editor-tools.vercel.app/video-resizer",
-  "videostudio": "https://aprimo-editor-tools.vercel.app/video-studio",
-  "videostudiobasket": "https://aprimo-editor-tools.vercel.app/video-studio",
-  "templates": "https://aprimo-editor-tools.vercel.app/templates",
-  "templatesbasket": "https://aprimo-editor-tools.vercel.app/templates",
-  "basketeditor": "https://aprimo-editor-tools.vercel.app/basket-editor",
+  "basketeditor":               "https://aprimo-editor-tools.vercel.app/basket-editor",
+  "creativetemplatecreate":     "https://aprimo-editor-tools.vercel.app/creative-template-create",
+  "creativetemplatefill":       "https://aprimo-editor-tools.vercel.app/creative-template-fill",
+  "mybasket":                   "https://aprimo-editor-tools.vercel.app/my-basket",
+  "myitem":                     "https://aprimo-editor-tools.vercel.app/my-item",
+  "templates":                  "https://aprimo-editor-tools.vercel.app/templates",
+  "templatesbasket":            "https://aprimo-editor-tools.vercel.app/templates",
+  "translatevideo":             "https://aprimo-editor-tools.vercel.app/translate-video",
+  "tts":                        "https://aprimo-editor-tools.vercel.app/text-to-speech",
+  "videoresizer":               "https://aprimo-editor-tools.vercel.app/video-resizer",
+  "videostudio":                "https://aprimo-editor-tools.vercel.app/video-studio",
+  "videostudiobasket":          "https://aprimo-editor-tools.vercel.app/video-studio",
 
-  "basketexamplelocal": "http://localhost:3000/my-basket",
-  "mybasketlocal": "http://localhost:3000/my-basket",
-  "myitemlocal": "http://localhost:3000/my-item",
-  "videoresizerlocal": "http://localhost:3000/video-resizer",
-  "videostudiolocal": "http://localhost:3000/video-studio",
-  "videostudiobasketlocal": "http://localhost:3000/video-studio",
-  "templateslocal": "http://localhost:3000/templates",
-  "templatesbasketlocal": "http://localhost:3000/templates",
-  "basketeditorlocal": "http://localhost:3000/basket-editor",
-
-  "creativetemplatecreate": "https://aprimo-editor-tools.vercel.app/creative-template-create",
-  "creativetemplatefill": "https://aprimo-editor-tools.vercel.app/creative-template-fill",
-  "creativetemplatefilllocal": "http://localhost:3000/creative-template-fill",
-  "creativetemplatecreatelocal": "http://localhost:3000/creative-template-create",
-
-  "translatevideo": "https://aprimo-editor-tools.vercel.app/translate-video",
-  "translatevideolocal": "http://localhost:3000/translate-video"
+  "mybasketlocal":              "http://localhost:3000/my-basket"
 }

@@ -324,6 +324,44 @@ Spanish, French, German, Italian, Portuguese, Polish, Hindi, Japanese, Korean, C
 
 ---
 
+### Text to Speech
+
+Convert a script to AI-generated audio via ElevenLabs and save it back to Aprimo — either attached to an existing record or as a new record. Demonstrates how to expose governed AI audio creation to corporate users.
+
+Can be triggered via Aprimo page hook (single-record mode) or opened directly from the home page to create a new record from scratch.
+
+| Parameter | Source | Description |
+|-----------|--------|-------------|
+| `record` | Webhook (`&mode=singleitem`) | Aprimo record ID to read `_Script` and `DisplayTitle` fields from and attach audio to. Omit to create a new record. |
+
+Webhook action: `tts` with `&mode=singleitem` appended to the webhook URL.
+
+**Pipeline — existing record**
+
+1. Reads the `_Script` field value from the record
+2. Generates audio via ElevenLabs TTS
+3. Changes the record's content type and title (`<Title> Audio`) in Aprimo
+4. Uploads the audio file
+5. Attaches it as the master file on the record
+
+**Pipeline — new record**
+
+1. User enters a title and script directly on the page
+2. Generates audio via ElevenLabs TTS
+3. Uploads the audio file
+4. Creates a new Aprimo record with the audio as the master file, applying the configured content type and classification
+
+**Environment variables**
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ELEVENLABS_API_KEY` | Yes | ElevenLabs API key — server-side only, never exposed to the browser |
+| `ELEVENLABS_TTS_VOICE_ID` | No | Default ElevenLabs voice ID. Defaults to Rachel (`21m00Tcm4TlvDq8ikWAM`) if unset. Voice can also be selected in the UI. |
+| `NEXT_PUBLIC_AUDIO_CONTENT_TYPE` | No | Content type name or ID to pre-fill the content type field in the UI |
+| `NEXT_PUBLIC_TTS_CLASSIFICATION_ID` | Yes (new records) | Classification ID applied when creating new records. Required when no `?record=` is provided. |
+
+---
+
 ### Duplicate Assets
 
 Find and resolve duplicate assets by matching on the master file's **checksum** and/or **filename**. Opened from the home page or the navbar (no page hook required) — it loads automatically on connect.
@@ -395,7 +433,8 @@ NEXT_PUBLIC_APRIMO_CLIENT_SECRET=your-client-secret
   "templates":                 "https://your-deployment.vercel.app/templates",
   "creativetemplatecreate":    "https://your-deployment.vercel.app/creative-template-create",
   "creativetemplatefill":      "https://your-deployment.vercel.app/creative-template-fill",
-  "translatevideo":            "https://your-deployment.vercel.app/translate-video"
+  "translatevideo":            "https://your-deployment.vercel.app/translate-video",
+  "tts":                       "https://your-deployment.vercel.app/text-to-speech"
 }
 ```
 
@@ -414,6 +453,7 @@ The action name in Aprimo maps to a key in that file. The record or basket ID is
 | `creativetemplatecreate` | Single-record | Creative Template — open existing template for editing |
 | `creativetemplatefill` | Single-record | Creative Template — fill a template and save as asset |
 | `translatevideo` | Single-record | Translate Video |
+| `tts` | Single-record | Text to Speech — generate audio from a record's `_Script` field |
 
 ## Getting Started
 
@@ -453,8 +493,11 @@ NEXT_PUBLIC_CANVAS_TEMPLATE_CONTENT_TYPE=           # content type name or ID fo
 NEXT_PUBLIC_CANVAS_TEMPLATE_JSON_FIELD=             # long-text field name used to store the layout JSON
 NEXT_PUBLIC_CANVAS_TEMPLATE_CLASSIFICATION_ID=      # classification ID added to every new template record
 
-# ElevenLabs (optional — only required for Translate Video)
+# ElevenLabs (optional — only required for Translate Video and Text to Speech)
 ELEVENLABS_API_KEY=                                 # ElevenLabs API key (server-side only)
+ELEVENLABS_TTS_VOICE_ID=                            # Default TTS voice ID (defaults to Rachel)
+NEXT_PUBLIC_AUDIO_CONTENT_TYPE=                     # Content type for TTS records
+NEXT_PUBLIC_TTS_CLASSIFICATION_ID=                  # Classification ID for new TTS records (required for create flow)
 ```
 
 ### 3. Install and run
