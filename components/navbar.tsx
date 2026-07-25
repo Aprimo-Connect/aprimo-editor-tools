@@ -4,14 +4,8 @@ import { Wifi, WifiOff, Settings } from "lucide-react"
 import Link from "next/link"
 import { useAprimo } from "@/context/aprimo-context"
 import { Badge } from "@/components/ui/badge"
-import { PageHeader } from "@/components/page-header"
 import { AprimoLogo } from "@/components/aprimo-logo"
 import { ModeToggle } from "@/components/mode-toggle"
-
-export interface NavbarProps {
-  /** When false, the breadcrumb sub-bar is suppressed. Default: true. */
-  showPageHeader?: boolean
-}
 
 const ALL_FROM_ENV = !!(
   process.env.NEXT_PUBLIC_APRIMO_ENVIRONMENT &&
@@ -19,7 +13,7 @@ const ALL_FROM_ENV = !!(
   process.env.NEXT_PUBLIC_APRIMO_CLIENT_SECRET
 )
 
-export function Navbar({ showPageHeader = true }: NavbarProps = {}) {
+export function Navbar() {
   const { isConnected, connection } = useAprimo()
 
   return (
@@ -89,7 +83,6 @@ export function Navbar({ showPageHeader = true }: NavbarProps = {}) {
         </div>
       </div>
 
-      {showPageHeader && <PageHeader />}
     </nav>
   )
 }
