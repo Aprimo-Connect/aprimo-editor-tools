@@ -362,6 +362,35 @@ Webhook action: `tts` with `&mode=singleitem` appended to the webhook URL.
 
 ---
 
+### Asset Usage
+
+View engagement analytics for an Aprimo record — views, downloads, impressions, and plays — powered by the Aprimo Analytics API. Triggered via Aprimo page hook or opened directly with a `?record=` query parameter.
+
+| Parameter | Source | Description |
+|-----------|--------|-------------|
+| `record` | Webhook (`&mode=singleitem`) | The Aprimo record ID to show analytics for |
+
+Webhook action: `assetusage` with `&mode=singleitem` appended to the webhook URL.
+
+**Metrics**
+
+| Metric | Description |
+|--------|-------------|
+| Views | Total record views in the selected date range |
+| Downloads | Total file downloads |
+| Impressions | Total embed/link impressions tracked via UTM parameters |
+| Plays | Total preview playbacks |
+
+- **Date range selector** — 30 days, 90 days, 6 months, 1 year, or all time
+- **Engagement chart** — line chart with one line per metric; all lines shown by default
+- **Metric tiles** — act as both stat cards and tab controls; clicking a tile highlights its chart line and shows its detail table; clicking again deselects
+- **Views by user** — date, login ID, and view count per user per day
+- **Downloads by user** — date, login ID, and download count per user per day
+- **Plays by user** — date, login ID, and play count per user per day
+- **Impressions by day & UTM** — date, UTM parameter key, UTM value, and impression count
+
+---
+
 ### Duplicate Assets
 
 Find and resolve duplicate assets by matching on the master file's **checksum** and/or **filename**. Opened from the home page or the navbar (no page hook required) — it loads automatically on connect.
@@ -434,7 +463,8 @@ NEXT_PUBLIC_APRIMO_CLIENT_SECRET=your-client-secret
   "creativetemplatecreate":    "https://your-deployment.vercel.app/creative-template-create",
   "creativetemplatefill":      "https://your-deployment.vercel.app/creative-template-fill",
   "translatevideo":            "https://your-deployment.vercel.app/translate-video",
-  "tts":                       "https://your-deployment.vercel.app/text-to-speech"
+  "tts":                       "https://your-deployment.vercel.app/text-to-speech",
+  "assetusage":                "https://your-deployment.vercel.app/asset-usage"
 }
 ```
 
@@ -454,6 +484,7 @@ The action name in Aprimo maps to a key in that file. The record or basket ID is
 | `creativetemplatefill` | Single-record | Creative Template — fill a template and save as asset |
 | `translatevideo` | Single-record | Translate Video |
 | `tts` | Single-record | Text to Speech — generate audio from a record's `_Script` field |
+| `assetusage` | Single-record | Asset Usage — engagement analytics for a record |
 
 ## Getting Started
 
