@@ -361,7 +361,7 @@ function AssetUsageContent() {
               <img src={thumbnailUrl} alt={recordTitle} className="h-20 w-32 object-cover rounded-md bg-muted flex-shrink-0" />
             )}
             <div className="flex flex-col gap-1 min-w-0">
-              <h1 className="text-xl font-semibold leading-tight">{recordTitle}</h1>
+              <h1 className="text-xl font-semibold leading-tight">{record.contentType}</h1>
               <p className="text-xs text-muted-foreground font-mono">{recordId}</p>
             </div>
           </div>
