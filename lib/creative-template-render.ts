@@ -202,14 +202,19 @@ async function drawImage(ctx: CanvasRenderingContext2D, l: ImageLayer) {
   const { x, y, width, height, content: c } = l
   ctx.save()
   ctx.beginPath(); ctx.rect(x, y, width, height); ctx.clip()
-  if (c.src) {
-    const img = await loadImg(c.src)
-    if (img) drawObjectFit(ctx, img, x, y, width, height, c.fit)
+  const img = c.src ? await loadImg(c.src) : null
+  if (img) {
+    drawObjectFit(ctx, img, x, y, width, height, c.fit)
   } else {
-    ctx.fillStyle = "rgba(0,0,0,0.04)"
+    ctx.fillStyle = "rgba(0,0,0,0.06)"
     ctx.fillRect(x, y, width, height)
-    ctx.strokeStyle = "rgba(0,0,0,0.18)"
-    ctx.setLineDash([4, 4]); ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1); ctx.setLineDash([])
+    ctx.strokeStyle = "rgba(0,0,0,0.25)"
+    ctx.lineWidth = 1
+    ctx.setLineDash([6, 4]); ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1); ctx.setLineDash([])
+    ctx.fillStyle = "rgba(0,0,0,0.30)"
+    ctx.font = `500 ${Math.max(11, Math.min(14, height / 6))}px sans-serif`
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"
+    ctx.fillText(c.src ? "Image (failed to load)" : "Image", x + width / 2, y + height / 2)
   }
   ctx.restore()
 }
@@ -222,9 +227,9 @@ async function drawShape(ctx: CanvasRenderingContext2D, l: ShapeLayer) {
   shapePath(ctx, x, y, width, height, c)
   if (c.fillType === "color" && c.fill) {
     ctx.fillStyle = c.fill; ctx.fill()
-  } else if (c.fillType === "image" && c.src) {
+  } else if (c.fillType === "image") {
     ctx.save(); ctx.clip()
-    const img = await loadImg(c.src)
+    const img = c.src ? await loadImg(c.src) : null
     if (img) drawObjectFit(ctx, img, x, y, width, height, c.imageFit)
     ctx.restore()
     shapePath(ctx, x, y, width, height, c) // redraw for stroke

@@ -446,12 +446,23 @@ function CanvasPage() {
   }, [])
 
   const [layersOpen, setLayersOpen] = useState(true)
+  const [layersWidth, setLayersWidth] = useState(256)
   const [propertiesOpen, setPropertiesOpen] = useState(true)
 
   const [zoom, setZoom] = useState<number | null>(null)
   const displayScale = zoom ?? 1
   const zoomIn  = useCallback(() => setZoom((z) => Math.min(4,   Math.round(((z ?? 1) + 0.1) * 100) / 100)), [])
   const zoomOut = useCallback(() => setZoom((z) => Math.max(0.1, Math.round(((z ?? 1) - 0.1) * 100) / 100)), [])
+
+  const onLayersResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startWidth = layersWidth
+    const onMove = (ev: MouseEvent) => setLayersWidth(Math.max(150, Math.min(600, startWidth + (ev.clientX - startX))))
+    const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp) }
+    window.addEventListener("mousemove", onMove)
+    window.addEventListener("mouseup", onUp)
+  }, [layersWidth])
 
   // Keep layouts in a ref so saveToAprimo always reads the latest without being recreated.
   const layoutsRef = useRef(layouts)
@@ -659,6 +670,7 @@ function CanvasPage() {
         setSavedRecordId(itemId)
         setSourceContentTypeId(parsed.sourceContentTypeId ?? "")
         setSourceContentTypeName(parsed.sourceContentTypeName ?? "")
+        if (parsed.sourceContentTypeId) void loadContentTypes()
         toast.success("Template loaded.")
       } catch (err) {
         toast.error(`Could not load template: ${err instanceof Error ? err.message : String(err)}`)
@@ -977,7 +989,7 @@ function CanvasPage() {
           onClick={() => setSelectedId(l.id)}
           style={{ paddingLeft: 8 + depth * 12 }}
           className={cn(
-            "flex items-center gap-1.5 rounded py-1 pr-2 text-xs cursor-pointer",
+            "flex items-center gap-1.5 rounded py-1 pr-2 text-xs cursor-pointer min-w-max",
             selectedId === l.id ? "bg-primary/15" : "hover:bg-muted/60"
           )}
         >
@@ -1003,7 +1015,7 @@ function CanvasPage() {
           ) : (
             <MousePointerClick className="h-3.5 w-3.5 shrink-0" />
           )}
-          <span className="min-w-0 flex-1 truncate">{l.name}</span>
+          <span className="whitespace-nowrap">{l.name}</span>
           <button onClick={(e) => { e.stopPropagation(); patchLayer(l.id, { visible: !l.visible }) }} title="Visibility">
             {l.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5 text-muted-foreground/50" />}
           </button>
@@ -1191,7 +1203,7 @@ function CanvasPage() {
             {/* Image controls */}
             {selected.type === "image" && (
               <>
-                <input type="text" value={selected.content.src} onChange={(e) => patchContent(selected.id, { src: e.target.value })}
+                <input type="text" value={selected.content.src} onChange={(e) => patchContent(selected.id, { src: e.target.value, source: "free" })}
                   placeholder="Image URL…"
                   style={{ ...inputCss, width: 180, fontFamily: M.mono, fontSize: 11 }} />
                 <select value={selected.content.fit} onChange={(e) => patchContent(selected.id, { fit: e.target.value as Fit })}
@@ -1394,18 +1406,29 @@ function CanvasPage() {
 
           <div className="flex items-start gap-0">
             {/* Left panel: layers */}
-            <aside className={cn(
-              "flex flex-col rounded-xl border border-border bg-card overflow-hidden shrink-0 transition-all duration-200",
-              layersOpen ? "w-64 opacity-100" : "w-0 border-transparent opacity-0"
-            )}>
+            <aside
+              style={{ width: layersOpen ? layersWidth : 0 }}
+              className={cn(
+                "flex flex-col rounded-xl border border-border bg-card overflow-hidden shrink-0 transition-[opacity,border-color] duration-200",
+                layersOpen ? "opacity-100" : "border-transparent opacity-0"
+              )}
+            >
               <div className="border-b border-border px-3 py-2 text-sm font-semibold shrink-0">Layers</div>
-              <div className="p-1 overflow-y-auto flex-1">
+              <div className="p-1 overflow-y-auto overflow-x-auto flex-1">
                 {layout.layers.length === 0 && (
                   <p className="p-2 text-xs text-muted-foreground">Add a layer to begin.</p>
                 )}
                 {layout.layers.map((l) => renderRow(l, 0))}
               </div>
             </aside>
+
+            {/* Layers resize handle */}
+            {layersOpen && (
+              <div
+                onMouseDown={onLayersResizeStart}
+                className="w-1 self-stretch cursor-col-resize hover:bg-primary/40 active:bg-primary/60 shrink-0 transition-colors"
+              />
+            )}
 
             {/* Layers toggle handle */}
             <button
@@ -1477,8 +1500,17 @@ function CanvasPage() {
               propertiesOpen ? "w-[17rem] opacity-100" : "w-0 opacity-0 overflow-hidden"
             )}>
               {selected && (
-                <div className="space-y-2 rounded-xl border border-border bg-card p-3 text-xs">
-                  <div className="text-sm font-semibold">Properties</div>
+                <div className={cn("space-y-2 rounded-xl border border-border bg-card p-3 text-xs", selected.locked && "opacity-50 pointer-events-none")}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold">Properties</span>
+                    <button
+                      onClick={() => patchLayer(selected.id, { locked: !selected.locked })}
+                      className="pointer-events-auto text-muted-foreground hover:text-foreground transition-colors"
+                      title={selected.locked ? "Unlock" : "Lock"}
+                    >
+                      {selected.locked ? <Lock className="h-3.5 w-3.5" /> : <LockOpen className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
                   <label className="block">
                     <span className="text-muted-foreground">Name</span>
                     <Input value={selected.name} onChange={(e) => patchLayer(selected.id, { name: e.target.value })} className="mt-1 h-8 text-xs" />
@@ -1737,7 +1769,7 @@ function CanvasPage() {
                       <div className="space-y-1.5">
                         <span className="text-muted-foreground">Source</span>
                         <div className="flex gap-1.5">
-                          {(["asset", "free"] as const).map((mode) => (
+                          {(["free", "asset"] as const).map((mode) => (
                             <button key={mode}
                               onClick={() => patchContent(selected.id, { source: mode })}
                               className={cn(
