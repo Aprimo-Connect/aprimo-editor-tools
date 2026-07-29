@@ -14,10 +14,6 @@ const ENV_CLIENT_ID = process.env.NEXT_PUBLIC_APRIMO_CLIENT_ID ?? ""
 const ENV_CLIENT_SECRET = process.env.NEXT_PUBLIC_APRIMO_CLIENT_SECRET ?? ""
 const ALL_FROM_ENV = !!(ENV_ENVIRONMENT && ENV_CLIENT_ID && ENV_CLIENT_SECRET)
 
-const LS_FIGMA_CLIENT_ID = "figma_client_id"
-const LS_FIGMA_CLIENT_SECRET = "figma_client_secret"
-const LS_FIGMA_OAUTH_REDIRECT = "figma_oauth_redirect"
-
 interface ConnectionProfile {
   id: string
   name: string
@@ -82,10 +78,7 @@ export function AprimoConfigDialog() {
   const [formEnvironment, setFormEnvironment] = useState("")
   const [formClientId, setFormClientId] = useState("")
   const [formClientSecret, setFormClientSecret] = useState("")
-  const [formFigmaClientId, setFormFigmaClientId] = useState("")
-  const [formFigmaClientSecret, setFormFigmaClientSecret] = useState("")
-  const [formFigmaOauthRedirect, setFormFigmaOauthRedirect] = useState("")
-  const hasAttempted = useRef(false)
+const hasAttempted = useRef(false)
 
   function openDialog() {
     const loaded = loadProfiles()
@@ -133,19 +126,12 @@ export function AprimoConfigDialog() {
     startOAuth(profile.environment, profile.clientId, profile.clientSecret)
   }
 
-  function initFigmaFields() {
-    setFormFigmaClientId(localStorage.getItem(LS_FIGMA_CLIENT_ID) ?? "")
-    setFormFigmaClientSecret(localStorage.getItem(LS_FIGMA_CLIENT_SECRET) ?? "")
-    setFormFigmaOauthRedirect(localStorage.getItem(LS_FIGMA_OAUTH_REDIRECT) ?? "")
-  }
-
   function openNew() {
     setEditing(null)
     setFormName("")
     setFormEnvironment("")
     setFormClientId("")
     setFormClientSecret("")
-    initFigmaFields()
     setView("edit")
   }
 
@@ -155,7 +141,6 @@ export function AprimoConfigDialog() {
     setFormEnvironment(profile.environment)
     setFormClientId(profile.clientId)
     setFormClientSecret(profile.clientSecret)
-    initFigmaFields()
     setView("edit")
   }
 
@@ -169,19 +154,12 @@ export function AprimoConfigDialog() {
     }
   }
 
-  function persistFigmaFields() {
-    localStorage.setItem(LS_FIGMA_CLIENT_ID, formFigmaClientId.trim())
-    localStorage.setItem(LS_FIGMA_CLIENT_SECRET, formFigmaClientSecret.trim())
-    localStorage.setItem(LS_FIGMA_OAUTH_REDIRECT, formFigmaOauthRedirect.trim())
-  }
-
   function saveProfile() {
     const profile = buildUpdatedProfile()
     const updated = editing
       ? profiles.map((p) => (p.id === editing.id ? profile : p))
       : [...profiles, profile]
     persistProfiles(updated)
-    persistFigmaFields()
     setProfiles(updated)
     setView("list")
   }
@@ -192,7 +170,6 @@ export function AprimoConfigDialog() {
       ? profiles.map((p) => (p.id === editing.id ? profile : p))
       : [...profiles, profile]
     persistProfiles(updated)
-    persistFigmaFields()
     localStorage.setItem(LAST_PROFILE_KEY, profile.id)
     setOpen(false)
     startOAuth(profile.environment, profile.clientId, profile.clientSecret)
@@ -321,40 +298,6 @@ export function AprimoConfigDialog() {
                 />
               </div>
 
-              <div className="border-t border-border pt-4 space-y-3">
-                  <p className="text-xs font-medium text-muted-foreground">Figma — Creative Template Import</p>
-                  <p className="text-xs text-muted-foreground">These settings are shared across all connection profiles.</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="figma-client-id">Client ID</Label>
-                      <Input
-                        id="figma-client-id"
-                        placeholder="your-figma-client-id"
-                        value={formFigmaClientId}
-                        onChange={(e) => setFormFigmaClientId(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="figma-client-secret">Client Secret</Label>
-                      <Input
-                        id="figma-client-secret"
-                        type="password"
-                        placeholder="your-figma-client-secret"
-                        value={formFigmaClientSecret}
-                        onChange={(e) => setFormFigmaClientSecret(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="figma-oauth-redirect">OAuth redirect URL <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                    <Input
-                      id="figma-oauth-redirect"
-                      placeholder={`${typeof window !== "undefined" ? window.location.origin : ""}/api/figma-import/oauth/callback`}
-                      value={formFigmaOauthRedirect}
-                      onChange={(e) => setFormFigmaOauthRedirect(e.target.value)}
-                    />
-                  </div>
-                </div>
             </div>
 
             <DialogFooter className="flex-col sm:flex-row gap-2">

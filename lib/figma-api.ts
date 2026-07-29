@@ -519,7 +519,7 @@ export function nodeToLayout(root: any, imageFills: Record<string, string> = {},
     const svgSrc = svgExports[node.id]
     if (svgSrc || VECTOR_TYPES.has(node.type)) {
       if (!svgSrc) return null // no export available; skip
-      return { ...base, type: "image", content: { src: svgSrc, fit: "contain" } }
+      return { ...base, type: "image", content: { src: svgSrc, fit: "contain", ...(node.cornerRadius ? { radius: node.cornerRadius } : {}) } }
     }
 
     if (node.type === "TEXT") {
@@ -591,7 +591,7 @@ export function nodeToLayout(root: any, imageFills: Record<string, string> = {},
       return { ...base, type: "shape", content: shapeContent, children: kids.map((c: any) => toLayer(c, b)).filter(Boolean) }
     }
     if (img) {
-      return { ...base, type: "image", content: { src: img.url, fit: img.fit } }
+      return { ...base, type: "image", content: { src: img.url, fit: img.fit, ...(node.cornerRadius ? { radius: node.cornerRadius } : {}) } }
     }
     return { ...base, type: "shape", content: shapeContent, children: [] }
   }

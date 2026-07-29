@@ -16,7 +16,7 @@ export type TextContent = {
   noWrap?: boolean; spans?: TextSpan[]
   aprimoField?: { id: string; name: string }
 }
-export type ImageContent = { src: string; fit: Fit; source?: "asset" | "free" }
+export type ImageContent = { src: string; fit: Fit; source?: "asset" | "free"; radius?: number }
 export type ShapeContent = {
   shape: "rectangle" | "ellipse"; fillType: "color" | "none" | "image"
   fill: string; src: string; imageFit: Fit; stroke: string; strokeWidth: number; radius: number
@@ -124,7 +124,7 @@ async function drawText(ctx: CanvasRenderingContext2D, l: TextLayer) {
   const { x, y, width, content: c } = l
 
   // When bound to an Aprimo field and no preview text is set, draw a placeholder.
-  if (c.aprimoField && !c.text.trim()) {
+  if (c.aprimoField && !c.text?.trim()) {
     ctx.save()
     ctx.textBaseline = "top"
     ctx.font = `italic ${c.fontSize}px ${c.fontFamily}`
@@ -201,7 +201,10 @@ async function drawText(ctx: CanvasRenderingContext2D, l: TextLayer) {
 async function drawImage(ctx: CanvasRenderingContext2D, l: ImageLayer) {
   const { x, y, width, height, content: c } = l
   ctx.save()
-  ctx.beginPath(); ctx.rect(x, y, width, height); ctx.clip()
+  ctx.beginPath()
+  if (c.radius) roundedRect(ctx, x, y, width, height, c.radius)
+  else ctx.rect(x, y, width, height)
+  ctx.clip()
   const img = c.src ? await loadImg(c.src) : null
   if (img) {
     drawObjectFit(ctx, img, x, y, width, height, c.fit)

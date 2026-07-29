@@ -42,6 +42,8 @@ const alpha = (token: ColorKey, pct: number) => `color-mix(in srgb, ${PALETTE[to
 import { drawLayout as canvasDrawLayout } from "@/lib/creative-template-render"
 import { htmlToLayout } from "@/lib/html-to-layout"
 
+const FIGMA_ENABLED = !!process.env.NEXT_PUBLIC_FIGMA_ENABLED
+
 /**
  * Content abstraction (the point of this page): a Layout is an ordered stack of
  * Layers. Geometry is common; `content` holds only the type-specific payload,
@@ -88,6 +90,7 @@ type ImageContent = {
   src: string
   fit: Fit
   source?: "asset" | "free"
+  radius?: number
 }
 type ShapeContent = {
   shape: "rectangle" | "ellipse"
@@ -989,7 +992,7 @@ function CanvasPage() {
           onClick={() => setSelectedId(l.id)}
           style={{ paddingLeft: 8 + depth * 12 }}
           className={cn(
-            "flex items-center gap-1.5 rounded py-1 pr-2 text-xs cursor-pointer min-w-max",
+            "group flex items-center gap-1.5 rounded py-1 pr-2 text-xs cursor-pointer min-w-max",
             selectedId === l.id ? "bg-primary/15" : "hover:bg-muted/60"
           )}
         >
@@ -1016,27 +1019,29 @@ function CanvasPage() {
             <MousePointerClick className="h-3.5 w-3.5 shrink-0" />
           )}
           <span className="whitespace-nowrap">{l.name}</span>
-          <button onClick={(e) => { e.stopPropagation(); patchLayer(l.id, { visible: !l.visible }) }} title="Visibility">
-            {l.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5 text-muted-foreground/50" />}
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); patchLayer(l.id, { locked: !l.locked }) }} title="Lock">
-            {l.locked ? <Lock className="h-3.5 w-3.5" /> : <LockOpen className="h-3.5 w-3.5 text-muted-foreground/50" />}
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); reorder(l.id, 1) }} title="Bring forward">
-            <ArrowUp className="h-3.5 w-3.5" />
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); reorder(l.id, -1) }} title="Send backward">
-            <ArrowDown className="h-3.5 w-3.5" />
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); indent(l.id) }} title="Move into group above">
-            <IndentIncrease className="h-3.5 w-3.5" />
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); outdent(l.id) }} title="Move out of group">
-            <IndentDecrease className="h-3.5 w-3.5" />
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); removeLayer(l.id) }} title="Delete">
-            <Trash2 className="h-3.5 w-3.5 text-destructive/80" />
-          </button>
+          <div className={cn("flex items-center gap-1 transition-opacity", selectedId === l.id ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
+            <button onClick={(e) => { e.stopPropagation(); patchLayer(l.id, { visible: !l.visible }) }} title="Visibility">
+              {l.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5 text-muted-foreground/50" />}
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); patchLayer(l.id, { locked: !l.locked }) }} title="Lock">
+              {l.locked ? <Lock className="h-3.5 w-3.5" /> : <LockOpen className="h-3.5 w-3.5 text-muted-foreground/50" />}
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); reorder(l.id, -1) }} title="Move up">
+              <ArrowUp className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); reorder(l.id, 1) }} title="Move down">
+              <ArrowDown className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); indent(l.id) }} title="Move into group above">
+              <IndentIncrease className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); outdent(l.id) }} title="Move out of group">
+              <IndentDecrease className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); removeLayer(l.id) }} title="Delete">
+              <Trash2 className="h-3.5 w-3.5 text-destructive/80" />
+            </button>
+          </div>
         </div>
         {isShape && !collapsed && l.children.map((c) => renderRow(c, depth + 1))}
       </div>
@@ -1362,7 +1367,7 @@ function CanvasPage() {
               <Button variant="outline" size="sm" onClick={() => setHtmlModalOpen(true)}>
                 <Code2 className="h-4 w-4" /> From HTML
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setFigmaModalOpen(true)}>
+              <Button variant="outline" size="sm" onClick={() => setFigmaModalOpen(true)} disabled={!FIGMA_ENABLED} title={FIGMA_ENABLED ? undefined : "Figma import requires NEXT_PUBLIC_FIGMA_ENABLED=true to be set"}>
                 <Layers className="h-4 w-4" /> From Figma
               </Button>
               <div className="mx-1 h-6 w-px bg-border" />
@@ -1414,7 +1419,7 @@ function CanvasPage() {
               )}
             >
               <div className="border-b border-border px-3 py-2 text-sm font-semibold shrink-0">Layers</div>
-              <div className="p-1 overflow-y-auto overflow-x-auto flex-1">
+              <div className="p-1 overflow-y-auto overflow-x-auto flex-1 min-h-[65vh]">
                 {layout.layers.length === 0 && (
                   <p className="p-2 text-xs text-muted-foreground">Add a layer to begin.</p>
                 )}
@@ -1802,6 +1807,15 @@ function CanvasPage() {
                         <option value="contain">Contain</option>
                         <option value="fill">Fill</option>
                       </select>
+                      <label className="block">
+                        <span className="text-muted-foreground">Corner radius</span>
+                        <Input
+                          type="number" min={0} max={999}
+                          value={selected.content.radius ?? 0}
+                          onChange={(e) => patchContent(selected.id, { radius: Math.max(0, Number(e.target.value)) })}
+                          className="mt-1 h-8 text-xs"
+                        />
+                      </label>
                     </div>
                   )}
                   {selected.type === "shape" && (
@@ -1918,15 +1932,7 @@ function CanvasPage() {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault()
-                    const params = new URLSearchParams()
-                    const cid = localStorage.getItem("figma_client_id")
-                    const csec = localStorage.getItem("figma_client_secret")
-                    const redir = localStorage.getItem("figma_oauth_redirect")
-                    if (cid) params.set("figma_client_id", cid)
-                    if (csec) params.set("figma_client_secret", csec)
-                    if (redir) params.set("figma_oauth_redirect", redir)
-                    const qs = params.toString()
-                    window.location.href = `/api/figma-import/oauth/start${qs ? `?${qs}` : ""}`
+                    window.location.href = "/api/figma-import/oauth/start"
                   }}
                   className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-full hover:opacity-90 transition-opacity no-underline cursor-pointer"
                 >

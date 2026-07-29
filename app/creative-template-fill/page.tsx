@@ -27,6 +27,20 @@ type ImageEdit = { type: "image"; src: string; fit?: Fit }
 type FieldEdit = TextEdit | ImageEdit
 type PendingField = { id: string; kind: "image" }
 
+// ── HTML helpers ─────────────────────────────────────────────────────────────
+function isHtml(s: string): boolean { return /<[a-z][\s\S]*>/i.test(s) }
+function stripHtml(s: string): string {
+  return s
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p\s*>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
+    .replace(/&mdash;/g, "—").replace(/&ndash;/g, "–").replace(/&hellip;/g, "…").replace(/&lsquo;/g, "'").replace(/&rsquo;/g, "'").replace(/&ldquo;/g, "“").replace(/&rdquo;/g, "”")
+    .replace(/&#8212;/g, "—").replace(/&#8211;/g, "–").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/\n{2,}/g, "\n")
+    .trim()
+}
+
 // ── Tree helpers ─────────────────────────────────────────────────────────────
 function collectEditable(layers: Layer[]): Layer[] {
   const out: Layer[] = []
@@ -73,6 +87,7 @@ function FillCanvasTemplatePage() {
   const [sourceContentTypeName, setSourceContentTypeName] = useState("")
   const [tabIdx, setTabIdx]         = useState(0)
   const [edits, setEdits]           = useState<Record<string, FieldEdit>>({})
+  const [htmlEdits, setHtmlEdits]   = useState<Record<string, string>>({})
   const pendingFieldRef = useRef<PendingField | null>(null)
   const [bulkLoading, setBulkLoading] = useState(false)
   const [fillData, setFillData] = useState<{ fieldValues: any[]; imageUri?: string } | null>(null)
@@ -206,6 +221,7 @@ function FillCanvasTemplatePage() {
   }, [liveLayout])
 
   const setTextEdit = useCallback((id: string, text: string, spans?: TextSpan[]) => setEdits((p) => ({ ...p, [id]: { type: "text", text, spans } })), [])
+
   const setImageSrc = useCallback((id: string, src: string) => setEdits((p) => {
     const prev = p[id]; const fit = prev?.type === "image" ? prev.fit : undefined
     return { ...p, [id]: { type: "image", src, fit } }
@@ -249,6 +265,21 @@ function FillCanvasTemplatePage() {
 
   const applyFill = useCallback((languageId: string, data: { fieldValues: any[]; imageUri?: string }) => {
     const { fieldValues, imageUri } = data
+
+    // Pre-compute HTML field values so we can track them outside setEdits
+    const htmlMap: Record<string, string> = {}
+    for (const field of fields) {
+      if (field.type === "text") {
+        const af = (field as TextLayer).content.aprimoField
+        if (af) {
+          const match = fieldValues.find((fv: any) => fv.id === af.id)
+          const lv = (match?.localizedValues ?? []).find((v: any) => v.languageId === languageId)
+          const value: string | undefined = lv?.value ?? match?.localizedValues?.[0]?.value
+          if (value !== undefined && isHtml(value)) htmlMap[field.id] = value
+        }
+      }
+    }
+
     setEdits((prev) => {
       const next = { ...prev }
       for (const field of fields) {
@@ -264,12 +295,13 @@ function FillCanvasTemplatePage() {
             const match = fieldValues.find((fv: any) => fv.id === af.id)
             const lv = (match?.localizedValues ?? []).find((v: any) => v.languageId === languageId)
             const value: string | undefined = lv?.value ?? match?.localizedValues?.[0]?.value
-            if (value !== undefined) next[field.id] = { type: "text", text: value }
+            if (value !== undefined) next[field.id] = { type: "text", text: isHtml(value) ? stripHtml(value) : value }
           }
         }
       }
       return next
     })
+    setHtmlEdits(htmlMap)
   }, [fields])
 
   const handleBulkAccept = useCallback(async (selection: SelectedRecord[]) => {
@@ -507,10 +539,10 @@ function FillCanvasTemplatePage() {
               <p className="text-sm font-semibold">Content fields</p>
               <p className="text-xs text-muted-foreground">{fields.length} editable field{fields.length !== 1 ? "s" : ""}</p>
             </div>
-            <Button size="sm" variant="outline" className="w-full h-8 text-xs gap-1.5"
+            <Button className="w-full gap-2"
               onClick={() => bulkSelector.open()}
               disabled={!bulkSelector.canOpen || bulkLoading || fields.length === 0}>
-              <Link2 className="h-3.5 w-3.5" />
+              <Link2 className="h-4 w-4" />
               {bulkLoading ? "Filling…" : "Fill from record"}
             </Button>
             {languageOptions.length > 1 && (
@@ -575,10 +607,17 @@ function FillCanvasTemplatePage() {
                           Bound to <span className="font-medium text-foreground">{af.name}</span>
                         </p>
                       )}
-                      <Textarea value={text} readOnly={!!af}
-                        onChange={af ? undefined : (e) => setTextEdit(field.id, e.target.value, undefined)}
-                        rows={2}
-                        className={cn("resize-y text-xs", af && "bg-muted/40 text-muted-foreground cursor-default")} />
+                      {af && htmlEdits[field.id] ? (
+                        <div
+                          className="text-xs p-2 rounded-md border border-border bg-muted/40 text-foreground [&_p]:mb-1 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:mb-0.5"
+                          dangerouslySetInnerHTML={{ __html: htmlEdits[field.id] }}
+                        />
+                      ) : (
+                        <Textarea value={text} readOnly={!!af}
+                          onChange={af ? undefined : (e) => setTextEdit(field.id, e.target.value, undefined)}
+                          rows={2}
+                          className={cn("resize-y text-xs", af && "bg-muted/40 text-muted-foreground cursor-default")} />
+                      )}
                     </div>
                   )
                 })()}
