@@ -8,16 +8,6 @@ A Next.js application for connecting to Aprimo using PKCE authentication and wor
 
 ## Tools
 
-### Bulk Upload
-
-Upload assets to Aprimo with metadata in bulk.
-
-- Drag-and-drop or browse to select multiple files
-- Define shared fields whose values apply to every asset in the batch
-- Override fields per asset where values differ
-- Supports single-line text, multi-line text, numeric, and classification field types
-- Tracks upload progress and reports per-asset success or failure
-
 ### My Basket
 
 Renders the contents of an Aprimo basket. Triggered via Aprimo page hook — record IDs are stored in Supabase and a handle is forwarded to the page. Use this as a starting point for building custom contact sheets or for exporting basket contents to Excel.
@@ -27,6 +17,47 @@ Renders the contents of an Aprimo basket. Triggered via Aprimo page hook — rec
 | `requestId` | Webhook (multi-record mode) | UUID handle used to fetch the record list from Supabase |
 
 Webhook action: `mybasket` (default multi-record mode — no `&mode=singleitem`).
+
+### My Item
+
+Displays a single Aprimo record. Triggered via Aprimo page hook — the record ID is passed directly as a query parameter.
+
+| Parameter | Source | Description |
+|-----------|--------|-------------|
+| `record` | Webhook (`&mode=singleitem`) | The Aprimo record ID to display |
+
+Webhook action: `myitem` with `&mode=singleitem` appended to the webhook URL.
+
+---
+
+### Asset Usage
+
+View engagement analytics for an Aprimo record — views, downloads, impressions, and plays — powered by the Aprimo Analytics API. Triggered via Aprimo page hook or opened directly with a `?record=` query parameter.
+
+| Parameter | Source | Description |
+|-----------|--------|-------------|
+| `record` | Webhook (`&mode=singleitem`) | The Aprimo record ID to show analytics for |
+
+Webhook action: `assetusage` with `&mode=singleitem` appended to the webhook URL.
+
+**Metrics**
+
+| Metric | Description |
+|--------|-------------|
+| Views | Total record views in the selected date range |
+| Downloads | Total file downloads |
+| Impressions | Total embed/link impressions tracked via UTM parameters |
+| Plays | Total preview playbacks |
+
+- **Date range selector** — 30 days, 90 days, 6 months, 1 year, or all time
+- **Engagement chart** — line chart with one line per metric; all lines shown by default
+- **Metric tiles** — act as both stat cards and tab controls; clicking a tile highlights its chart line and shows its detail table; clicking again deselects
+- **Views by user** — date, login ID, and view count per user per day
+- **Downloads by user** — date, login ID, and download count per user per day
+- **Plays by user** — date, login ID, and play count per user per day
+- **Impressions by day & UTM** — date, UTM parameter key, UTM value, and impression count
+
+---
 
 ### Basket Editor
 
@@ -45,15 +76,250 @@ Webhook action: `basketeditor` (default multi-record mode — no `&mode=singleit
 - Edited cells are highlighted; a single **Save changes** button writes all changed records via `records.update()` and reports per-record success / failure
 - Pick the **Save language** for localized field values, and **Export to Excel** the displayed columns
 
-### My Item
+### Bulk Upload
 
-Displays a single Aprimo record. Triggered via Aprimo page hook — the record ID is passed directly as a query parameter.
+Upload assets to Aprimo with metadata in bulk.
+
+- Drag-and-drop or browse to select multiple files
+- Define shared fields whose values apply to every asset in the batch
+- Override fields per asset where values differ
+- Supports single-line text, multi-line text, numeric, and classification field types
+- Tracks upload progress and reports per-asset success or failure
+
+### Creative Template
+
+A two-page workflow for designing reusable canvas layouts and filling them with DAM content to produce finished assets.
+
+#### Creative Template Create (`/creative-template-create`)
+
+A visual canvas editor for building multi-layer templates. Designs can be imported from Figma or HTML, or built from scratch.
+
+**Layers**
+
+| Type | Notes |
+|------|-------|
+| Text | Font family, size, weight, color, alignment, line height, text transform; optional Figma color-run spans |
+| Image | URL or DAM asset; cover / contain / fill mode |
+| Shape | Rectangle or ellipse; solid fill, image fill, or none; stroke and corner radius; child layers |
+| Button | Label, font, background color, border radius |
+
+- Layers can be locked (fixed in the final asset) or left editable for fill-time override
+- **Text field binding** — a text layer can be set to _Free text_ (editable directly at fill time) or bound to an _Aprimo field_ (content type + field name pair). At fill time the bound field's value is pulled from the selected record automatically
+- **HTML import** — paste raw HTML markup; the browser performs a real layout pass and the element tree is converted to canvas layers; a live scaled preview renders alongside the source
+- **Figma import** — paste a Figma file URL and personal access token to pull frames, groups, and auto-layout nodes directly into the canvas; effects (drop shadows, blurs) are imported
+- **Save to Aprimo** — the canvas layout JSON is stored in a long-text field on a new Aprimo record; a PNG thumbnail is attached as the master file. Re-saving updates the existing record
+- **Edit existing template** — opening the page with `?record=<recordId>` loads an existing canvas template record for editing
+
+**Aprimo setup**
+
+Before using the Creative Template tools, create the following in Aprimo:
+
+1. **A field to store the layout JSON** — create a **Multi-line text** (or JSON) field in Aprimo. The field name (not its display label) goes in `NEXT_PUBLIC_CANVAS_TEMPLATE_JSON_FIELD`. The full canvas layout — every layer, its geometry, text content, image source, and Aprimo field bindings — is serialised as JSON and written to this field whenever a template is saved. It is also read back when loading a template for editing or filling, so the field must be read/write and not subject to a character limit that would truncate the JSON.
+
+2. **A content type for canvas template records** — create (or designate) a content type in Aprimo for canvas template records. Register the layout JSON field on this content type. The content type's **name** or **ID** goes in `NEXT_PUBLIC_CANVAS_TEMPLATE_CONTENT_TYPE`. Every template saved from the Create page is stored as a record of this content type.
+
+3. **A classification** — canvas template records require at least one classification. Copy the classification ID from Aprimo and set it as `NEXT_PUBLIC_CANVAS_TEMPLATE_CLASSIFICATION_ID`. All new template records and filled output assets receive this classification.
+
+**Environment variables**
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_CANVAS_TEMPLATE_CONTENT_TYPE` | Yes | Name or ID of the Aprimo content type used for canvas template records (see setup above) |
+| `NEXT_PUBLIC_CANVAS_TEMPLATE_JSON_FIELD` | Yes | Internal **name** (not label) of the multi-line text field that stores the canvas layout JSON (see setup above) |
+| `NEXT_PUBLIC_CANVAS_TEMPLATE_CLASSIFICATION_ID` | Yes | Classification ID added to every new canvas template record and filled output asset |
+
+**Webhook actions**
+
+| Action | Mode | Description |
+|--------|------|-------------|
+| `creativetemplatecreate` | Single-record (`&mode=singleitem`) | Open an existing canvas template record for editing |
+
+#### Creative Template Fill (`/creative-template-fill`)
+
+Opens a saved canvas template and lets users fill its editable fields, then saves the result as a new Aprimo asset. Always opened via page hook from a canvas template record.
+
+**Editable fields**
+
+| Field type | Fill behaviour |
+|-----------|----------------|
+| Text — free text | Editable textarea |
+| Text — Aprimo field binding | **Select record** opens the Aprimo content selector (single mode); the bound metadata field value is fetched from the chosen record automatically; textarea is read-only |
+| Image | **Browse DAM** opens the Aprimo content selector (single rendition mode) to pick a specific rendition; fit toggle (cover / contain / fill); URL input as fallback |
+
+- Multi-canvas templates show a tab strip; zoom controls (in / out / fit) are provided
+- **Save asset** — renders the filled canvas to PNG and creates a new Aprimo record; prompts for an asset name and content type before saving
+
+**Webhook actions**
+
+| Action | Mode | Description |
+|--------|------|-------------|
+| `creativetemplatefill` | Single-record (`&mode=singleitem`) | Open a canvas template record for fill — loads the layout from the record's JSON field |
+
+> Both canvas template actions use the same `NEXT_PUBLIC_CANVAS_TEMPLATE_*` environment variables as the create page.
+
+---
+
+### Duplicate Assets
+
+Find and resolve duplicate assets by matching on the master file's **checksum** and/or **filename**. Opened from the home page or the navbar (no page hook required) — it loads automatically on connect.
+
+- Builds the list by **faceting** on the `_Checksum` field, keeping values shared by more than one record, then fetching those records
+- **Match on** dropdown — switch between **Checksum**, **Filename**, or **both** (both also matches the checksum + filename pair). Changing it refreshes the list
+- Compact, clickable grid; each tile shows the filename and checksum
+- Click an asset to open a **side-by-side comparison** of every metadata field against its duplicate, with mismatches highlighted
+  - For mismatched fields, click either side to choose which value to keep, then **Apply selected to this asset**
+  - **RecordLink** fields render the referenced assets (thumbnail + title) and, for multi-value links, offer a **Merge & dedupe** option that unions both sides' parents / children / links
+  - **Delete duplicate** removes the matched record; if the surviving asset no longer matches any other record it drops from the list
+
+#### Required global fields
+
+The Duplicates tool requires **two global, indexed, single-line text fields** on your records: **`_Checksum`** and **`_Filename`**. (The field names are resolved by label/name, so minor variations are tolerated, but `_Checksum` / `_Filename` are expected.)
+
+Populate them from the master file with Aprimo rule references:
+
+```xml
+<!-- _Checksum -->
+<ref:record file="master" out="CRC32"/>
+
+<!-- _Filename -->
+<ref:record file="master" out="filename"/>
+```
+
+- Both fields must be **indexed** (searchable) so they can be faceted and queried.
+- Configure both to **reset `OnMasterFileChange`** so the values stay in sync when a master file is replaced.
+- For **existing assets**, the references only run on change — you may need to run a **maintenance job** (e.g. a field-resave / touch action) to populate `_Checksum` and `_Filename` across the current library before the tool can detect their duplicates.
+
+### Dynamic Content
+
+A multi-format template builder. Load an Aprimo asset, define a content layout once (headline, body text, CTA, logo) and styles, then add format cards — each renders the same content at a different size. Export the lot as a ZIP, drive variants from a spreadsheet, or publish renditions back to the source record as additional files.
 
 | Parameter | Source | Description |
 |-----------|--------|-------------|
-| `record` | Webhook (`&mode=singleitem`) | The Aprimo record ID to display |
+| `requestId` | Webhook (multi-record mode) | UUID handle used to fetch the record list from Supabase |
+| `record` | Webhook (`&mode=singleitem`) | Single Aprimo record ID to import directly |
 
-Webhook action: `myitem` with `&mode=singleitem` appended to the webhook URL.
+**Workspace**
+
+- Infinite canvas — pan, zoom, drag to position format cards, draw on empty space to create new formats
+- Per-format anchor (9-point grid) with per-layer and per-asset overrides
+- Focal-point picker with optional Aprimo smart-crop URLs
+- Content / subject interference detection — a "Fix" button suggests the best non-overlapping anchor when text covers the focal subject
+- Multi-asset projects — switch between assets, each with its own focal area
+- Multi-project storage in `localStorage` — projects persist across reloads and can be exported / imported as JSON
+
+**Layers**
+
+- Headline, Text, CTA — independent font, weight, color, and gap settings
+- Reorder, hide per format, or override anchor per layer
+- Optional logo placed in any of 9 anchor positions
+
+**Bulk data**
+
+- Drag in a CSV / XLSX — auto-maps columns to layers by name
+- Step through rows to preview each variant live on the canvas
+- Export all rows × all formats as a single ZIP organised by row
+
+**Actions**
+
+| Button | Description |
+|--------|-------------|
+| Download All (ZIP) | Renders every format at full resolution and downloads as a zip |
+| Publish to DAM | Renders every format and attaches each as an additional file on the source record's master file. Existing same-named renditions are replaced. |
+| View in DAM | Appears once renditions are published — opens the source record in a new tab |
+| Export All (bulk) | Renders rows × formats from the imported spreadsheet as a structured zip |
+
+**Webhook actions**
+
+| Action | Mode | Description |
+|--------|------|-------------|
+| `templatesbasket` | Multi-record (default) | Open Dynamic Content with selected DAM assets imported into a chosen project |
+| `templates` | Single-record (`&mode=singleitem`) | Open Dynamic Content with a single asset imported |
+
+When the page loads with `?requestId=` (or `?record=`) a project picker modal lets the user pick an existing project to import into, or create a new one. Assets are fetched via the SDK to resolve their CDN URLs.
+
+> Logos load via `<img crossorigin="anonymous">`. Logos hosted on a CORS-permissive origin (Aprimo CDN, your own bucket) work; restrictive ones (HubSpot etc.) won't load — self-host or use an Aprimo CDN URL.
+
+### Excel Import
+
+Import metadata from an Excel file into Aprimo records.
+
+- Upload an `.xlsx` / `.xls` file and select which columns to map
+- Map Excel columns to Aprimo field definitions (auto-matched by name)
+- Map classification and option-list values from the spreadsheet to Aprimo values (auto-matched by name/label; option lists honor the field's single- vs multi-select setting)
+- Supports single-line / multi-line text, HTML, numeric, date / time, text list, classification, and option-list fields
+- Date cells are normalized to the format each field type expects (`yyyy-MM-dd`, ISO 8601, or `HH:mm:ss`)
+- **View contents** — preview the parsed sheet in a dialog; classification / option values that need manual matching are highlighted
+- Choose the target language for localized field values
+- Saves to Aprimo using `records.update()` with built-in rate-limit handling
+
+### Text to Speech
+
+Convert a script to AI-generated audio via ElevenLabs and save it back to Aprimo — either attached to an existing record or as a new record. Demonstrates how to expose governed AI audio creation to corporate users.
+
+Can be triggered via Aprimo page hook (single-record mode) or opened directly from the home page to create a new record from scratch.
+
+| Parameter | Source | Description |
+|-----------|--------|-------------|
+| `record` | Webhook (`&mode=singleitem`) | Aprimo record ID to read `_Script` and `DisplayTitle` fields from and attach audio to. Omit to create a new record. |
+
+Webhook action: `tts` with `&mode=singleitem` appended to the webhook URL.
+
+**Pipeline — existing record**
+
+1. Reads the `_Script` field value from the record
+2. Generates audio via ElevenLabs TTS
+3. Changes the record's content type and title (`<Title> Audio`) in Aprimo
+4. Uploads the audio file
+5. Attaches it as the master file on the record
+
+**Pipeline — new record**
+
+1. User enters a title and script directly on the page
+2. Generates audio via ElevenLabs TTS
+3. Uploads the audio file
+4. Creates a new Aprimo record with the audio as the master file, applying the configured content type and classification
+
+**Environment variables**
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ELEVENLABS_API_KEY` | Yes | ElevenLabs API key — server-side only, never exposed to the browser |
+| `ELEVENLABS_TTS_VOICE_ID` | No | Default ElevenLabs voice ID. Defaults to Rachel (`21m00Tcm4TlvDq8ikWAM`) if unset. Voice can also be selected in the UI. |
+| `NEXT_PUBLIC_AUDIO_CONTENT_TYPE` | No | Content type name or ID to pre-fill the content type field in the UI |
+| `NEXT_PUBLIC_TTS_CLASSIFICATION_ID` | Yes (new records) | Classification ID applied when creating new records. Required when no `?record=` is provided. |
+
+---
+
+### Translate Video
+
+Translate a video asset into another language using the ElevenLabs Dubbing API, then save the result as a new Aprimo record. Triggered via Aprimo page hook — the record ID is passed directly as a query parameter.
+
+| Parameter | Source | Description |
+|-----------|--------|-------------|
+| `record` | Webhook (`&mode=singleitem`) | The Aprimo record ID of the source video |
+
+Webhook action: `translatevideo` with `&mode=singleitem` appended to the webhook URL.
+
+**Pipeline**
+
+1. Creates an Aprimo download order to obtain a CDN URL for the source video
+2. Submits the URL directly to the ElevenLabs Dubbing API (the file never transits the server)
+3. Polls until dubbing completes (up to 15 minutes)
+4. Downloads the dubbed video via a server-side proxy
+5. Uploads the dubbed video to Aprimo
+6. Creates a new Aprimo record; the filename is prefixed with the target language name (e.g. `[Spanish] my-video.mp4`)
+
+**Target languages**
+
+Spanish, French, German, Italian, Portuguese, Polish, Hindi, Japanese, Korean, Chinese, Arabic, Dutch, Turkish, Swedish.
+
+**Environment variables**
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ELEVENLABS_API_KEY` | Yes | ElevenLabs API key — server-side only, never exposed to the browser |
+
+---
 
 ### Video Resizer
 
@@ -157,269 +423,7 @@ Video Studio supports two webhook action modes:
 
 > FFmpeg.wasm requires `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless` response headers on the `/video-studio` route. These are already configured in `next.config.mjs`.
 
-### Dynamic Content
-
-A multi-format template builder. Load an Aprimo asset, define a content layout once (headline, body text, CTA, logo) and styles, then add format cards — each renders the same content at a different size. Export the lot as a ZIP, drive variants from a spreadsheet, or publish renditions back to the source record as additional files.
-
-| Parameter | Source | Description |
-|-----------|--------|-------------|
-| `requestId` | Webhook (multi-record mode) | UUID handle used to fetch the record list from Supabase |
-| `record` | Webhook (`&mode=singleitem`) | Single Aprimo record ID to import directly |
-
-**Workspace**
-
-- Infinite canvas — pan, zoom, drag to position format cards, draw on empty space to create new formats
-- Per-format anchor (9-point grid) with per-layer and per-asset overrides
-- Focal-point picker with optional Aprimo smart-crop URLs
-- Content / subject interference detection — a "Fix" button suggests the best non-overlapping anchor when text covers the focal subject
-- Multi-asset projects — switch between assets, each with its own focal area
-- Multi-project storage in `localStorage` — projects persist across reloads and can be exported / imported as JSON
-
-**Layers**
-
-- Headline, Text, CTA — independent font, weight, color, and gap settings
-- Reorder, hide per format, or override anchor per layer
-- Optional logo placed in any of 9 anchor positions
-
-**Bulk data**
-
-- Drag in a CSV / XLSX — auto-maps columns to layers by name
-- Step through rows to preview each variant live on the canvas
-- Export all rows × all formats as a single ZIP organised by row
-
-**Actions**
-
-| Button | Description |
-|--------|-------------|
-| Download All (ZIP) | Renders every format at full resolution and downloads as a zip |
-| Publish to DAM | Renders every format and attaches each as an additional file on the source record's master file. Existing same-named renditions are replaced. |
-| View in DAM | Appears once renditions are published — opens the source record in a new tab |
-| Export All (bulk) | Renders rows × formats from the imported spreadsheet as a structured zip |
-
-**Webhook actions**
-
-| Action | Mode | Description |
-|--------|------|-------------|
-| `templatesbasket` | Multi-record (default) | Open Dynamic Content with selected DAM assets imported into a chosen project |
-| `templates` | Single-record (`&mode=singleitem`) | Open Dynamic Content with a single asset imported |
-
-When the page loads with `?requestId=` (or `?record=`) a project picker modal lets the user pick an existing project to import into, or create a new one. Assets are fetched via the SDK to resolve their CDN URLs.
-
-> Logos load via `<img crossorigin="anonymous">`. Logos hosted on a CORS-permissive origin (Aprimo CDN, your own bucket) work; restrictive ones (HubSpot etc.) won't load — self-host or use an Aprimo CDN URL.
-
-### Excel Import
-
-Import metadata from an Excel file into Aprimo records.
-
-- Upload an `.xlsx` / `.xls` file and select which columns to map
-- Map Excel columns to Aprimo field definitions (auto-matched by name)
-- Map classification and option-list values from the spreadsheet to Aprimo values (auto-matched by name/label; option lists honor the field's single- vs multi-select setting)
-- Supports single-line / multi-line text, HTML, numeric, date / time, text list, classification, and option-list fields
-- Date cells are normalized to the format each field type expects (`yyyy-MM-dd`, ISO 8601, or `HH:mm:ss`)
-- **View contents** — preview the parsed sheet in a dialog; classification / option values that need manual matching are highlighted
-- Choose the target language for localized field values
-- Saves to Aprimo using `records.update()` with built-in rate-limit handling
-
-### Creative Template
-
-A two-page workflow for designing reusable canvas layouts and filling them with DAM content to produce finished assets.
-
-#### Creative Template Create (`/creative-template-create`)
-
-A visual canvas editor for building multi-layer templates. Designs can be imported from Figma or HTML, or built from scratch.
-
-**Layers**
-
-| Type | Notes |
-|------|-------|
-| Text | Font family, size, weight, color, alignment, line height, text transform; optional Figma color-run spans |
-| Image | URL or DAM asset; cover / contain / fill mode |
-| Shape | Rectangle or ellipse; solid fill, image fill, or none; stroke and corner radius; child layers |
-| Button | Label, font, background color, border radius |
-
-- Layers can be locked (fixed in the final asset) or left editable for fill-time override
-- **Text field binding** — a text layer can be set to _Free text_ (editable directly at fill time) or bound to an _Aprimo field_ (content type + field name pair). At fill time the bound field's value is pulled from the selected record automatically
-- **HTML import** — paste raw HTML markup; the browser performs a real layout pass and the element tree is converted to canvas layers; a live scaled preview renders alongside the source
-- **Figma import** — paste a Figma file URL and personal access token to pull frames, groups, and auto-layout nodes directly into the canvas; effects (drop shadows, blurs) are imported
-- **Save to Aprimo** — the canvas layout JSON is stored in a long-text field on a new Aprimo record; a PNG thumbnail is attached as the master file. Re-saving updates the existing record
-- **Edit existing template** — opening the page with `?record=<recordId>` loads an existing canvas template record for editing
-
-**Aprimo setup**
-
-Before using the Creative Template tools, create the following in Aprimo:
-
-1. **A field to store the layout JSON** — create a **Multi-line text** (or JSON) field in Aprimo. The field name (not its display label) goes in `NEXT_PUBLIC_CANVAS_TEMPLATE_JSON_FIELD`. The full canvas layout — every layer, its geometry, text content, image source, and Aprimo field bindings — is serialised as JSON and written to this field whenever a template is saved. It is also read back when loading a template for editing or filling, so the field must be read/write and not subject to a character limit that would truncate the JSON.
-
-2. **A content type for canvas template records** — create (or designate) a content type in Aprimo for canvas template records. Register the layout JSON field on this content type. The content type's **name** or **ID** goes in `NEXT_PUBLIC_CANVAS_TEMPLATE_CONTENT_TYPE`. Every template saved from the Create page is stored as a record of this content type.
-
-3. **A classification** — canvas template records require at least one classification. Copy the classification ID from Aprimo and set it as `NEXT_PUBLIC_CANVAS_TEMPLATE_CLASSIFICATION_ID`. All new template records and filled output assets receive this classification.
-
-**Environment variables**
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_CANVAS_TEMPLATE_CONTENT_TYPE` | Yes | Name or ID of the Aprimo content type used for canvas template records (see setup above) |
-| `NEXT_PUBLIC_CANVAS_TEMPLATE_JSON_FIELD` | Yes | Internal **name** (not label) of the multi-line text field that stores the canvas layout JSON (see setup above) |
-| `NEXT_PUBLIC_CANVAS_TEMPLATE_CLASSIFICATION_ID` | Yes | Classification ID added to every new canvas template record and filled output asset |
-
-**Webhook actions**
-
-| Action | Mode | Description |
-|--------|------|-------------|
-| `creativetemplatecreate` | Single-record (`&mode=singleitem`) | Open an existing canvas template record for editing |
-
-#### Creative Template Fill (`/creative-template-fill`)
-
-Opens a saved canvas template and lets users fill its editable fields, then saves the result as a new Aprimo asset. Always opened via page hook from a canvas template record.
-
-**Editable fields**
-
-| Field type | Fill behaviour |
-|-----------|----------------|
-| Text — free text | Editable textarea |
-| Text — Aprimo field binding | **Select record** opens the Aprimo content selector (single mode); the bound metadata field value is fetched from the chosen record automatically; textarea is read-only |
-| Image | **Browse DAM** opens the Aprimo content selector (single rendition mode) to pick a specific rendition; fit toggle (cover / contain / fill); URL input as fallback |
-
-- Multi-canvas templates show a tab strip; zoom controls (in / out / fit) are provided
-- **Save asset** — renders the filled canvas to PNG and creates a new Aprimo record; prompts for an asset name and content type before saving
-
-**Webhook actions**
-
-| Action | Mode | Description |
-|--------|------|-------------|
-| `creativetemplatefill` | Single-record (`&mode=singleitem`) | Open a canvas template record for fill — loads the layout from the record's JSON field |
-
-> Both canvas template actions use the same `NEXT_PUBLIC_CANVAS_TEMPLATE_*` environment variables as the create page.
-
 ---
-
-### Translate Video
-
-Translate a video asset into another language using the ElevenLabs Dubbing API, then save the result as a new Aprimo record. Triggered via Aprimo page hook — the record ID is passed directly as a query parameter.
-
-| Parameter | Source | Description |
-|-----------|--------|-------------|
-| `record` | Webhook (`&mode=singleitem`) | The Aprimo record ID of the source video |
-
-Webhook action: `translatevideo` with `&mode=singleitem` appended to the webhook URL.
-
-**Pipeline**
-
-1. Creates an Aprimo download order to obtain a CDN URL for the source video
-2. Submits the URL directly to the ElevenLabs Dubbing API (the file never transits the server)
-3. Polls until dubbing completes (up to 15 minutes)
-4. Downloads the dubbed video via a server-side proxy
-5. Uploads the dubbed video to Aprimo
-6. Creates a new Aprimo record; the filename is prefixed with the target language name (e.g. `[Spanish] my-video.mp4`)
-
-**Target languages**
-
-Spanish, French, German, Italian, Portuguese, Polish, Hindi, Japanese, Korean, Chinese, Arabic, Dutch, Turkish, Swedish.
-
-**Environment variables**
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ELEVENLABS_API_KEY` | Yes | ElevenLabs API key — server-side only, never exposed to the browser |
-
----
-
-### Text to Speech
-
-Convert a script to AI-generated audio via ElevenLabs and save it back to Aprimo — either attached to an existing record or as a new record. Demonstrates how to expose governed AI audio creation to corporate users.
-
-Can be triggered via Aprimo page hook (single-record mode) or opened directly from the home page to create a new record from scratch.
-
-| Parameter | Source | Description |
-|-----------|--------|-------------|
-| `record` | Webhook (`&mode=singleitem`) | Aprimo record ID to read `_Script` and `DisplayTitle` fields from and attach audio to. Omit to create a new record. |
-
-Webhook action: `tts` with `&mode=singleitem` appended to the webhook URL.
-
-**Pipeline — existing record**
-
-1. Reads the `_Script` field value from the record
-2. Generates audio via ElevenLabs TTS
-3. Changes the record's content type and title (`<Title> Audio`) in Aprimo
-4. Uploads the audio file
-5. Attaches it as the master file on the record
-
-**Pipeline — new record**
-
-1. User enters a title and script directly on the page
-2. Generates audio via ElevenLabs TTS
-3. Uploads the audio file
-4. Creates a new Aprimo record with the audio as the master file, applying the configured content type and classification
-
-**Environment variables**
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ELEVENLABS_API_KEY` | Yes | ElevenLabs API key — server-side only, never exposed to the browser |
-| `ELEVENLABS_TTS_VOICE_ID` | No | Default ElevenLabs voice ID. Defaults to Rachel (`21m00Tcm4TlvDq8ikWAM`) if unset. Voice can also be selected in the UI. |
-| `NEXT_PUBLIC_AUDIO_CONTENT_TYPE` | No | Content type name or ID to pre-fill the content type field in the UI |
-| `NEXT_PUBLIC_TTS_CLASSIFICATION_ID` | Yes (new records) | Classification ID applied when creating new records. Required when no `?record=` is provided. |
-
----
-
-### Asset Usage
-
-View engagement analytics for an Aprimo record — views, downloads, impressions, and plays — powered by the Aprimo Analytics API. Triggered via Aprimo page hook or opened directly with a `?record=` query parameter.
-
-| Parameter | Source | Description |
-|-----------|--------|-------------|
-| `record` | Webhook (`&mode=singleitem`) | The Aprimo record ID to show analytics for |
-
-Webhook action: `assetusage` with `&mode=singleitem` appended to the webhook URL.
-
-**Metrics**
-
-| Metric | Description |
-|--------|-------------|
-| Views | Total record views in the selected date range |
-| Downloads | Total file downloads |
-| Impressions | Total embed/link impressions tracked via UTM parameters |
-| Plays | Total preview playbacks |
-
-- **Date range selector** — 30 days, 90 days, 6 months, 1 year, or all time
-- **Engagement chart** — line chart with one line per metric; all lines shown by default
-- **Metric tiles** — act as both stat cards and tab controls; clicking a tile highlights its chart line and shows its detail table; clicking again deselects
-- **Views by user** — date, login ID, and view count per user per day
-- **Downloads by user** — date, login ID, and download count per user per day
-- **Plays by user** — date, login ID, and play count per user per day
-- **Impressions by day & UTM** — date, UTM parameter key, UTM value, and impression count
-
----
-
-### Duplicate Assets
-
-Find and resolve duplicate assets by matching on the master file's **checksum** and/or **filename**. Opened from the home page or the navbar (no page hook required) — it loads automatically on connect.
-
-- Builds the list by **faceting** on the `_Checksum` field, keeping values shared by more than one record, then fetching those records
-- **Match on** dropdown — switch between **Checksum**, **Filename**, or **both** (both also matches the checksum + filename pair). Changing it refreshes the list
-- Compact, clickable grid; each tile shows the filename and checksum
-- Click an asset to open a **side-by-side comparison** of every metadata field against its duplicate, with mismatches highlighted
-  - For mismatched fields, click either side to choose which value to keep, then **Apply selected to this asset**
-  - **RecordLink** fields render the referenced assets (thumbnail + title) and, for multi-value links, offer a **Merge & dedupe** option that unions both sides' parents / children / links
-  - **Delete duplicate** removes the matched record; if the surviving asset no longer matches any other record it drops from the list
-
-#### Required global fields
-
-The Duplicates tool requires **two global, indexed, single-line text fields** on your records: **`_Checksum`** and **`_Filename`**. (The field names are resolved by label/name, so minor variations are tolerated, but `_Checksum` / `_Filename` are expected.)
-
-Populate them from the master file with Aprimo rule references:
-
-```xml
-<!-- _Checksum -->
-<ref:record file="master" out="CRC32"/>
-
-<!-- _Filename -->
-<ref:record file="master" out="filename"/>
-```
-
-- Both fields must be **indexed** (searchable) so they can be faceted and queried.
-- Configure both to **reset `OnMasterFileChange`** so the values stay in sync when a master file is replaced.
-- For **existing assets**, the references only run on change — you may need to run a **maintenance job** (e.g. a field-resave / touch action) to populate `_Checksum` and `_Filename` across the current library before the tool can detect their duplicates.
 
 ## Data Flow
 
@@ -498,38 +502,7 @@ The My Basket flow stores temporary record lists in Supabase.
 
 ### 2. Configure environment variables
 
-Copy `.env.local.example` to `.env.local` and fill in the values:
-
-```
-# Supabase (required for My Basket and Video Studio basket)
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-
-# Webhook secret — must match the secret configured in Aprimo's page hook settings
-WEBHOOK_SECRET=your-webhook-secret
-
-# Aprimo (optional — trial environments can enter these via the in-app Connect modal instead)
-NEXT_PUBLIC_APRIMO_ENVIRONMENT=your-environment
-NEXT_PUBLIC_APRIMO_CLIENT_ID=your-client-id
-NEXT_PUBLIC_APRIMO_CLIENT_SECRET=your-client-secret
-
-# Video Studio — Save as Asset (optional — only required if using that feature)
-NEXT_PUBLIC_VIDEO_STUDIO_CONTENT_TYPE=              # content type name or ID for new records
-NEXT_PUBLIC_VIDEO_STUDIO_CLASSIFICATION_ID=         # classification ID (records require at least one)
-NEXT_PUBLIC_VIDEO_STUDIO_JSON_FIELD=                # field name used to store project state JSON
-NEXT_PUBLIC_ASSOCIATED_ASSETS_RECORD_LINK_FIELD=    # RecordLink field to link source assets (optional)
-
-# Creative Template (optional — only required if using the creative template tools)
-NEXT_PUBLIC_CANVAS_TEMPLATE_CONTENT_TYPE=           # content type name or ID for canvas template records
-NEXT_PUBLIC_CANVAS_TEMPLATE_JSON_FIELD=             # long-text field name used to store the layout JSON
-NEXT_PUBLIC_CANVAS_TEMPLATE_CLASSIFICATION_ID=      # classification ID added to every new template record
-
-# ElevenLabs (optional — only required for Translate Video and Text to Speech)
-ELEVENLABS_API_KEY=                                 # ElevenLabs API key (server-side only)
-ELEVENLABS_TTS_VOICE_ID=                            # Default TTS voice ID (defaults to Rachel)
-NEXT_PUBLIC_AUDIO_CONTENT_TYPE=                     # Content type for TTS records
-NEXT_PUBLIC_TTS_CLASSIFICATION_ID=                  # Classification ID for new TTS records (required for create flow)
-```
+Copy `.env.local.example` to `.env.local` and fill in the values. The example file is the authoritative reference — each variable is documented inline with whether it is required or optional and what it controls.
 
 ### 3. Install and run
 

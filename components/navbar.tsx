@@ -35,14 +35,9 @@ export function Navbar() {
                 Excel Import
               </Link>
             )}
-            {isConnected && (
-              <Link href="/video-studio" className="text-muted-foreground hover:text-foreground transition-colors">
-                Video Studio
-              </Link>
-            )}
-            {isConnected && (
-              <Link href="/templates" className="text-muted-foreground hover:text-foreground transition-colors">
-                Dynamic Content
+{isConnected && (
+              <Link href="/creative-template-create" className="text-muted-foreground hover:text-foreground transition-colors">
+                Create Template
               </Link>
             )}
             {isConnected && (
@@ -50,15 +45,7 @@ export function Navbar() {
                 Duplicates
               </Link>
             )}
-            {isConnected && connection?.environment && (
-              <a
-                href={`https://${connection.environment}.dam.aprimo.com/dam`}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Aprimo Home
-              </a>
-            )}
-            {isConnected ? (
+{isConnected ? (
               <Badge variant="outline" className="flex items-center gap-1.5 border-success text-success">
                 <Wifi className="h-3 w-3" />
                 {connection?.environment}

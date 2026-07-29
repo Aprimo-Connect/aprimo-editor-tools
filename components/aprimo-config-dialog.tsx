@@ -154,22 +154,23 @@ const hasAttempted = useRef(false)
     }
   }
 
-  function saveProfile() {
+  function commitProfile(): { profile: ConnectionProfile; updated: ConnectionProfile[] } {
     const profile = buildUpdatedProfile()
     const updated = editing
       ? profiles.map((p) => (p.id === editing.id ? profile : p))
       : [...profiles, profile]
     persistProfiles(updated)
     setProfiles(updated)
+    return { profile, updated }
+  }
+
+  function saveProfile() {
+    commitProfile()
     setView("list")
   }
 
   function saveAndConnect() {
-    const profile = buildUpdatedProfile()
-    const updated = editing
-      ? profiles.map((p) => (p.id === editing.id ? profile : p))
-      : [...profiles, profile]
-    persistProfiles(updated)
+    const { profile } = commitProfile()
     localStorage.setItem(LAST_PROFILE_KEY, profile.id)
     setOpen(false)
     startOAuth(profile.environment, profile.clientId, profile.clientSecret)

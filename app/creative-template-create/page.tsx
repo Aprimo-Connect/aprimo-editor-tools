@@ -31,116 +31,24 @@ import {
   Type,
   X,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, toHex } from "@/lib/utils"
 import { toast } from "sonner"
 import { Expander } from "aprimo-js"
 import { useAprimo } from "@/context/aprimo-context"
-const M = { ink: "#181410", paper: "#F6F3EC", clay: "#2E5D4B", moss: "#8AA68F", sun: "#E8B93B", display: "Fraunces, Georgia, serif", sans: "Inter, system-ui, sans-serif", mono: '"JetBrains Mono", monospace' }
-type ColorKey = "ink" | "paper" | "clay" | "moss" | "sun"
-const PALETTE: Record<ColorKey, string> = { ink: "#181410", paper: "#F6F3EC", clay: "#2E5D4B", moss: "#8AA68F", sun: "#E8B93B" }
-const alpha = (token: ColorKey, pct: number) => `color-mix(in srgb, ${PALETTE[token]} ${pct}%, transparent)`
-import { drawLayout as canvasDrawLayout } from "@/lib/creative-template-render"
+const M = { foreground: "#181410", primaryColor: "#2E5D4B", secondaryColor: "#8AA68F", accentColor: "#E8B93B", display: "Fraunces, Georgia, serif", sans: "Inter, system-ui, sans-serif", mono: '"JetBrains Mono", monospace' }
+type ColorKey = keyof Pick<typeof M, "foreground" | "primaryColor" | "secondaryColor" | "accentColor">
+const alpha = (token: ColorKey, pct: number) => `color-mix(in srgb, ${M[token]} ${pct}%, transparent)`
+import { drawLayout as canvasDrawLayout, type Align, type Fit, type TextSpan, type TextContent, type ImageContent, type ShapeContent, type ButtonContent, type LayerBase, type TextLayer, type ImageLayer, type ShapeLayer, type ButtonLayer, type Layer, type Layout } from "@/lib/creative-template-render"
 import { htmlToLayout } from "@/lib/html-to-layout"
 
 const FIGMA_ENABLED = !!process.env.NEXT_PUBLIC_FIGMA_ENABLED
 
-/**
- * Content abstraction (the point of this page): a Layout is an ordered stack of
- * Layers. Geometry is common; `content` holds only the type-specific payload,
- * kept separate so a template builder can later swap a literal value for an
- * Aprimo binding without touching layout/geometry.
- */
-type Align = "left" | "center" | "right"
-type Fit = "cover" | "contain" | "fill"
-
-type LayerBase = {
-  id: string
-  name: string
-  x: number
-  y: number
-  width: number
-  height: number
-  rotation: number
-  opacity: number
-  visible: boolean
-  locked: boolean
-}
-// A single styled run within a text layer. Absent fields fall back to the
-// parent TextContent values, so only overrides need to be stored.
-type TextSpan = {
-  text: string
-  color?: string
-  fontWeight?: number
-}
-
-type TextContent = {
-  text: string           // full plain-text fallback (always kept in sync)
-  fontFamily: string
-  fontSize: number
-  fontWeight: number
-  color: string
-  align: Align
-  lineHeight: number
-  textTransform?: string
-  noWrap?: boolean       // true → white-space: nowrap (single-line auto-resize text)
-  spans?: TextSpan[]     // present when the text has per-run color/weight overrides
-  aprimoField?: { id: string; name: string } // field binding — filled from source asset at fill time
-}
-type ImageContent = {
-  src: string
-  fit: Fit
-  source?: "asset" | "free"
-  radius?: number
-}
-type ShapeContent = {
-  shape: "rectangle" | "ellipse"
-  fillType: "color" | "none" | "image" // "none" = transparent
-  fill: string // color when fillType === "color"
-  src: string // image url when fillType === "image"
-  imageFit: Fit
-  stroke: string
-  strokeWidth: number
-  radius: number
-}
-type ButtonContent = {
-  label: string
-  fontFamily: string
-  fontSize: number
-  fontWeight: number
-  color: string
-  background: string
-  radius: number
-}
-type TextLayer = LayerBase & { type: "text"; content: TextContent }
-type ImageLayer = LayerBase & { type: "image"; content: ImageContent }
-// Shapes double as containers/groups: children are positioned relative to the shape.
-type ShapeLayer = LayerBase & { type: "shape"; content: ShapeContent; children: Layer[] }
-type ButtonLayer = LayerBase & { type: "button"; content: ButtonContent }
-type Layer = TextLayer | ImageLayer | ShapeLayer | ButtonLayer
 type AnyContent = TextContent & ImageContent & ShapeContent & ButtonContent
-
-type Layout = {
-  version: 1
-  name: string
-  width: number
-  height: number
-  background: string
-  layers: Layer[] // paint order: index 0 = back, last = front
-}
 
 type FigmaFrame = { id: string; name: string; type: string }
 type FigmaPage = { id: string; name: string; frames: FigmaFrame[] }
 
 const uid = () => (globalThis.crypto?.randomUUID?.() ?? `id-${Date.now()}-${Math.round(Math.random() * 1e6)}`)
-
-// Normalise any CSS color string to #rrggbb for <input type="color">.
-function toHex(color: string): string {
-  if (!color) return "#000000"
-  if (color.startsWith("#")) return color.length >= 7 ? color.slice(0, 7) : color
-  const m = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/)
-  if (!m) return "#000000"
-  return "#" + [m[1], m[2], m[3]].map((n) => parseInt(n).toString(16).padStart(2, "0")).join("")
-}
 
 // Recursive tree helpers (shapes can contain children).
 function findLayer(layers: Layer[], id: string): Layer | null {
@@ -365,7 +273,7 @@ function InlineTextEditor({
         width: "100%",
         height: "100%",
         background: "rgba(255,255,255,0.90)",
-        border: `2px solid ${M.clay}`,
+        border: `2px solid ${M.primaryColor}`,
         borderRadius: 4,
         padding: 4,
         fontFamily: layer.content.fontFamily,
@@ -1058,28 +966,28 @@ function CanvasPage() {
     const tx = Math.max(0, Math.min(abs.x, layout.width - 8))
 
     const typeBadge: Record<Layer["type"], string> = { text: "T", image: "IMG", shape: "□", button: "BTN" }
-    const typeBadgeBg: Record<Layer["type"], string> = { text: M.clay, image: "#3b82f6", shape: "#8b5cf6", button: M.moss }
+    const typeBadgeBg: Record<Layer["type"], string> = { text: M.primaryColor, image: "#3b82f6", shape: "#8b5cf6", button: M.secondaryColor }
 
     const inputCss: CSSProperties = {
       height: 28, fontSize: 12, borderRadius: 6,
-      border: `1px solid ${alpha("ink", 15)}`, padding: "0 8px",
-      fontFamily: M.sans, flexShrink: 0, outline: "none", color: M.ink, background: "#fff",
+      border: `1px solid ${alpha("foreground", 15)}`, padding: "0 8px",
+      fontFamily: M.sans, flexShrink: 0, outline: "none", color: M.foreground, background: "#fff",
     }
     const iconBtn = (active?: boolean): CSSProperties => ({
       display: "inline-flex", alignItems: "center", justifyContent: "center",
       width: 28, height: 28, borderRadius: 6,
-      border: `1px solid ${alpha("ink", 15)}`,
-      background: active ? alpha("ink", 8) : "transparent",
-      cursor: "pointer", flexShrink: 0, color: M.ink, padding: 0,
+      border: `1px solid ${alpha("foreground", 15)}`,
+      background: active ? alpha("foreground", 8) : "transparent",
+      cursor: "pointer", flexShrink: 0, color: M.foreground, padding: 0,
     })
-    const Sep = () => <span style={{ display: "inline-block", width: 1, height: 20, background: alpha("ink", 10), margin: "0 4px", flexShrink: 0 }} />
+    const Sep = () => <span style={{ display: "inline-block", width: 1, height: 20, background: alpha("foreground", 10), margin: "0 4px", flexShrink: 0 }} />
 
     return (
       <div
         style={{
           position: "absolute", left: tx, top: ty, zIndex: 20,
           display: "inline-flex", alignItems: "center", gap: 3,
-          background: "#fff", border: `1px solid ${alpha("ink", 12)}`,
+          background: "#fff", border: `1px solid ${alpha("foreground", 12)}`,
           borderRadius: 12, padding: "0 8px", height: TOOLBAR_H,
           boxShadow: "0 4px 20px rgba(0,0,0,0.13), 0 1px 4px rgba(0,0,0,0.06)",
           whiteSpace: "nowrap", pointerEvents: "auto",
@@ -1090,14 +998,14 @@ function CanvasPage() {
         <span style={{ background: typeBadgeBg[selected.type], color: "#fff", borderRadius: 6, padding: "2px 7px", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", flexShrink: 0 }}>
           {typeBadge[selected.type]}
         </span>
-        <span style={{ fontSize: 12, fontWeight: 500, color: alpha("ink", 60), maxWidth: 96, overflow: "hidden", textOverflow: "ellipsis", padding: "0 4px", flexShrink: 1 }}>
+        <span style={{ fontSize: 12, fontWeight: 500, color: alpha("foreground", 60), maxWidth: 96, overflow: "hidden", textOverflow: "ellipsis", padding: "0 4px", flexShrink: 1 }}>
           {selected.name}
         </span>
 
         <Sep />
 
         {selected.locked ? (
-          <span style={{ fontSize: 11, color: alpha("ink", 45), padding: "0 4px" }}>Locked</span>
+          <span style={{ fontSize: 11, color: alpha("foreground", 45), padding: "0 4px" }}>Locked</span>
         ) : (
           <>
             {/* Text controls */}
@@ -1118,7 +1026,7 @@ function CanvasPage() {
                             type="color"
                             value={toHex(span.color ?? selected.content.color)}
                             onChange={(e) => updateSpan({ color: e.target.value })}
-                            style={{ width: 24, height: 24, padding: 1, borderRadius: 4, border: `1px solid ${alpha("ink", 15)}`, cursor: "pointer", flexShrink: 0 }}
+                            style={{ width: 24, height: 24, padding: 1, borderRadius: 4, border: `1px solid ${alpha("foreground", 15)}`, cursor: "pointer", flexShrink: 0 }}
                             title={`Run ${i + 1} color`}
                           />
                           <input
@@ -1134,7 +1042,7 @@ function CanvasPage() {
                                 const next = spans.filter((_, j) => j !== i)
                                 patchContent(selected.id, { spans: next.length ? next : undefined, text: next.map((s) => s.text).join("") })
                               }}
-                              style={{ ...iconBtn(), width: 18, height: 18, borderRadius: 4, fontSize: 12, color: alpha("ink", 45) }}
+                              style={{ ...iconBtn(), width: 18, height: 18, borderRadius: 4, fontSize: 12, color: alpha("foreground", 45) }}
                               title={`Remove run ${i + 1}`}
                             >×</button>
                           )}
@@ -1144,13 +1052,13 @@ function CanvasPage() {
                     {/* Add run */}
                     <button
                       onClick={() => patchContent(selected.id, { spans: [...selected.content.spans!, { text: "", color: selected.content.color }] })}
-                      style={{ ...iconBtn(), width: 22, height: 22, borderRadius: 4, fontSize: 14, color: alpha("ink", 50) }}
+                      style={{ ...iconBtn(), width: 22, height: 22, borderRadius: 4, fontSize: 14, color: alpha("foreground", 50) }}
                       title="Add run"
                     >+</button>
                     {/* Clear all runs */}
                     <button
                       onClick={() => patchContent(selected.id, { spans: undefined })}
-                      style={{ ...iconBtn(), width: "auto", padding: "0 8px", fontSize: 10, color: alpha("ink", 50) }}
+                      style={{ ...iconBtn(), width: "auto", padding: "0 8px", fontSize: 10, color: alpha("foreground", 50) }}
                       title="Remove all color runs"
                     >Clear runs</button>
                     <Sep />
@@ -1177,7 +1085,7 @@ function CanvasPage() {
                       title="Font family"
                     />
                     <input type="color" value={toHex(selected.content.color)} onChange={(e) => patchContent(selected.id, { color: e.target.value })}
-                      style={{ width: 28, height: 28, padding: 2, borderRadius: 6, border: `1px solid ${alpha("ink", 15)}`, cursor: "pointer", flexShrink: 0 }} title="Color" />
+                      style={{ width: 28, height: 28, padding: 2, borderRadius: 6, border: `1px solid ${alpha("foreground", 15)}`, cursor: "pointer", flexShrink: 0 }} title="Color" />
                     <input type="number" value={selected.content.fontSize} onChange={(e) => patchContent(selected.id, { fontSize: Number(e.target.value) || 1 })}
                       style={{ ...inputCss, width: 52 }} title="Font size" />
                     <button style={iconBtn(selected.content.fontWeight >= 700)} title="Bold"
@@ -1190,14 +1098,14 @@ function CanvasPage() {
                     </button>
                     {editingId !== selected.id && (
                       <button onClick={() => setEditingId(selected.id)}
-                        style={{ ...iconBtn(), width: "auto", padding: "0 10px", fontSize: 11, fontWeight: 600, color: M.clay, borderColor: alpha("clay", 30), background: alpha("clay", 6) }}>
+                        style={{ ...iconBtn(), width: "auto", padding: "0 10px", fontSize: 11, fontWeight: 600, color: M.primaryColor, borderColor: alpha("primaryColor", 30), background: alpha("primaryColor", 6) }}>
                         Edit text
                       </button>
                     )}
                     {/* Bootstrap color runs from current text */}
                     <button
                       onClick={() => patchContent(selected.id, { spans: splitIntoRuns(selected.content.text, selected.content.color) })}
-                      style={{ ...iconBtn(), width: "auto", padding: "0 8px", fontSize: 10, color: alpha("ink", 55) }}
+                      style={{ ...iconBtn(), width: "auto", padding: "0 8px", fontSize: 10, color: alpha("foreground", 55) }}
                       title="Split into color runs"
                     >+ Runs</button>
                   </>
@@ -1225,9 +1133,9 @@ function CanvasPage() {
               <>
                 {selected.content.fillType === "color" && (
                   <input type="color" value={toHex(selected.content.fill)} onChange={(e) => patchContent(selected.id, { fill: e.target.value })}
-                    style={{ width: 28, height: 28, padding: 2, borderRadius: 6, border: `1px solid ${alpha("ink", 15)}`, cursor: "pointer", flexShrink: 0 }} title="Fill" />
+                    style={{ width: 28, height: 28, padding: 2, borderRadius: 6, border: `1px solid ${alpha("foreground", 15)}`, cursor: "pointer", flexShrink: 0 }} title="Fill" />
                 )}
-                <span style={{ fontSize: 11, color: alpha("ink", 50) }}>Fill</span>
+                <span style={{ fontSize: 11, color: alpha("foreground", 50) }}>Fill</span>
               </>
             )}
 
@@ -1237,9 +1145,9 @@ function CanvasPage() {
                 <input type="text" value={selected.content.label} onChange={(e) => patchContent(selected.id, { label: e.target.value })}
                   placeholder="Label…" style={{ ...inputCss, width: 100 }} />
                 <input type="color" value={toHex(selected.content.background)} onChange={(e) => patchContent(selected.id, { background: e.target.value })}
-                  style={{ width: 28, height: 28, padding: 2, borderRadius: 6, border: `1px solid ${alpha("ink", 15)}`, cursor: "pointer", flexShrink: 0 }} title="Background" />
+                  style={{ width: 28, height: 28, padding: 2, borderRadius: 6, border: `1px solid ${alpha("foreground", 15)}`, cursor: "pointer", flexShrink: 0 }} title="Background" />
                 <input type="color" value={toHex(selected.content.color)} onChange={(e) => patchContent(selected.id, { color: e.target.value })}
-                  style={{ width: 28, height: 28, padding: 2, borderRadius: 6, border: `1px solid ${alpha("ink", 15)}`, cursor: "pointer", flexShrink: 0 }} title="Text color" />
+                  style={{ width: 28, height: 28, padding: 2, borderRadius: 6, border: `1px solid ${alpha("foreground", 15)}`, cursor: "pointer", flexShrink: 0 }} title="Text color" />
               </>
             )}
 
@@ -1257,7 +1165,7 @@ function CanvasPage() {
           style={{ ...inputCss, width: 52 }}
           title="Opacity %"
         />
-        <span style={{ fontSize: 11, color: alpha("ink", 45), marginLeft: -4 }}>%</span>
+        <span style={{ fontSize: 11, color: alpha("foreground", 45), marginLeft: -4 }}>%</span>
 
         <Sep />
 
@@ -1277,11 +1185,11 @@ function CanvasPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col overflow-x-hidden">
-      <Navbar showPageHeader={false} />
+      <Navbar />
       <div style={{ flex: 1, padding: 24 }}>
         <div className="space-y-4">
           {/* Canvas tabs */}
-          <div style={{ display: "flex", alignItems: "center", gap: 2, borderBottom: `1px solid ${alpha("ink", 10)}`, overflowX: "auto", paddingBottom: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 2, borderBottom: `1px solid ${alpha("foreground", 10)}`, overflowX: "auto", paddingBottom: 0 }}>
             {layouts.map((l, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", position: "relative" }}>
                 <button
@@ -1290,9 +1198,9 @@ function CanvasPage() {
                     display: "inline-flex", alignItems: "center", gap: 6,
                     padding: "8px 14px 9px",
                     fontSize: 13, fontFamily: M.sans, fontWeight: i === activeIdx ? 600 : 400,
-                    color: i === activeIdx ? M.clay : alpha("ink", 60),
+                    color: i === activeIdx ? M.primaryColor : alpha("foreground", 60),
                     background: "transparent", border: "none", cursor: "pointer",
-                    borderBottom: i === activeIdx ? `2px solid ${M.clay}` : "2px solid transparent",
+                    borderBottom: i === activeIdx ? `2px solid ${M.primaryColor}` : "2px solid transparent",
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -1301,7 +1209,7 @@ function CanvasPage() {
                 {layouts.length > 1 && (
                   <button
                     onClick={() => removeCanvas(i)}
-                    style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, borderRadius: "9999px", border: "none", background: "transparent", cursor: "pointer", color: alpha("ink", 40), padding: 0, marginLeft: -4 }}
+                    style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, borderRadius: "9999px", border: "none", background: "transparent", cursor: "pointer", color: alpha("foreground", 40), padding: 0, marginLeft: -4 }}
                     title="Remove canvas"
                   >
                     <X style={{ width: 10, height: 10 }} />
@@ -1311,7 +1219,7 @@ function CanvasPage() {
             ))}
             <button
               onClick={addCanvas}
-              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: "9999px", border: `1px solid ${alpha("ink", 15)}`, background: "transparent", cursor: "pointer", color: alpha("ink", 50), fontSize: 18, marginLeft: 4, flexShrink: 0 }}
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: "9999px", border: `1px solid ${alpha("foreground", 15)}`, background: "transparent", cursor: "pointer", color: alpha("foreground", 50), fontSize: 18, marginLeft: 4, flexShrink: 0 }}
               title="Add canvas"
             >
               +

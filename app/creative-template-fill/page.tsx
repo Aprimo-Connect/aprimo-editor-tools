@@ -6,7 +6,7 @@ import { ImageIcon, Link2, Minus, Plus, Save, Type } from "lucide-react"
 import { Navbar } from "@/components/navbar"
 import { toast } from "sonner"
 import { Expander } from "aprimo-js"
-import { cn } from "@/lib/utils"
+import { cn, toHex } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -60,14 +60,6 @@ function applyEdits(layers: Layer[], edits: Record<string, FieldEdit>): Layer[] 
     if (updated.type === "shape") return { ...updated, children: applyEdits(updated.children, edits) }
     return updated
   })
-}
-
-function toHex(color: string): string {
-  if (!color) return "#000000"
-  if (color.startsWith("#")) return color.length >= 7 ? color.slice(0, 7) : color
-  const m = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/)
-  if (!m) return "#000000"
-  return "#" + [m[1], m[2], m[3]].map((n) => parseInt(n).toString(16).padStart(2, "0")).join("")
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -449,7 +441,7 @@ function FillCanvasTemplatePage() {
   if (!selected) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col overflow-x-hidden">
-        <Navbar showPageHeader={false} />
+        <Navbar />
         <div className="flex flex-1 items-center justify-center">
           <p className="text-sm text-muted-foreground">
             {loadingItem ? "Loading template…" : "No template provided. Open this page from an Aprimo canvas template record."}
@@ -465,7 +457,7 @@ function FillCanvasTemplatePage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col overflow-x-hidden">
-      <Navbar showPageHeader={false} />
+      <Navbar />
 
       {/* Header bar */}
       <div className="border-b border-border px-6 py-3 flex items-center gap-3">
@@ -629,14 +621,8 @@ function FillCanvasTemplatePage() {
                   const isFree    = (field as ImageLayer).content.source === "free"
                   return (
                     <div className="flex flex-col gap-2">
-                      {isFree ? (
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" className="flex-1 h-8 text-xs"
-                            onClick={() => { pendingFieldRef.current = { id: field.id, kind: "image" }; imageSelector.open() }}
-                            disabled={!imageSelector.canOpen}>
-                            <ImageIcon className="h-3 w-3" />
-                            Browse DAM
-                          </Button>
+                      {(() => {
+                        const fitPicker = (
                           <div className="flex gap-0.5 bg-muted rounded-md p-0.5">
                             {fitOpts.map((f) => (
                               <button key={f} onClick={() => setImageFit(field.id, f)}
@@ -648,23 +634,24 @@ function FillCanvasTemplatePage() {
                               </button>
                             ))}
                           </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between">
-                          <p className="text-[10px] text-muted-foreground">Filled from source asset</p>
-                          <div className="flex gap-0.5 bg-muted rounded-md p-0.5">
-                            {fitOpts.map((f) => (
-                              <button key={f} onClick={() => setImageFit(field.id, f)}
-                                className={cn(
-                                  "px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer border-none capitalize",
-                                  fit === f ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:text-foreground"
-                                )}>
-                                {f}
-                              </button>
-                            ))}
+                        )
+                        return isFree ? (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="flex-1 h-8 text-xs"
+                              onClick={() => { pendingFieldRef.current = { id: field.id, kind: "image" }; imageSelector.open() }}
+                              disabled={!imageSelector.canOpen}>
+                              <ImageIcon className="h-3 w-3" />
+                              Browse DAM
+                            </Button>
+                            {fitPicker}
                           </div>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <p className="text-[10px] text-muted-foreground">Filled from source asset</p>
+                            {fitPicker}
+                          </div>
+                        )
+                      })()}
                       {src && (
                         <div className="w-full h-28 rounded-lg overflow-hidden border border-border">
                           {/* eslint-disable-next-line @next/next/no-img-element */}

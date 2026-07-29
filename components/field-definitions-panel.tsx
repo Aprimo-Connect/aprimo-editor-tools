@@ -98,6 +98,7 @@ export function FieldDefinitionsPanel({
   async function handleAddToTable() {
     const fields = Array.from(selectedFields)
     setTableFields(fields)
+    setOpen(false)
     setError(null)
     try {
       const fetched = await fetchRecords(recordIds, fields)

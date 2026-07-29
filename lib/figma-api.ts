@@ -199,16 +199,6 @@ type RawNode = {
   children?: RawNode[]
 }
 
-/** First visible solid fill as a css rgba() string. */
-function solidColor(fills?: RawFill[]): string | undefined {
-  if (!Array.isArray(fills)) return undefined
-  const f = fills.find((x) => x.visible !== false && x.type === "SOLID" && x.color)
-  if (!f?.color) return undefined
-  const { r, g, b, a } = f.color
-  const alpha = (a ?? 1) * (f.opacity ?? 1)
-  return `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${alpha})`
-}
-
 // --- Figma node → HTML/CSS conversion (absolute layout relative to the frame) ---
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function cssColor(c: any, opacity = 1): string | null {
@@ -619,9 +609,9 @@ export function toTree(node: RawNode, depth = 0): FigmaTreeNode {
   if (node.type === "TEXT" && node.characters) {
     out.text = node.characters
     out.textStyle = node.style
-    out.color = solidColor(node.fills) // text color
+    out.color = solidRgba(node.fills) ?? undefined // text color
   } else {
-    out.bg = solidColor(node.fills) // container background
+    out.bg = solidRgba(node.fills) ?? undefined // container background
   }
   if (depth < 60 && Array.isArray(node.children)) {
     out.children = node.children.map((c) => toTree(c, depth + 1))

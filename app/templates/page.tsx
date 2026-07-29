@@ -1454,7 +1454,7 @@ export default function TemplatesPage() {
     // Footer intentionally omitted on this page — workspace tools want all
     // available vertical space for the canvas.
     <div className="h-screen bg-background flex flex-col overflow-hidden">
-      <Navbar showPageHeader={false} />
+      <Navbar />
       <Suspense>
         <TemplatesContent />
       </Suspense>
