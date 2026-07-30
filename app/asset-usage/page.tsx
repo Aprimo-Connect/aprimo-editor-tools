@@ -109,7 +109,18 @@ function AssetUsageContent() {
   const [analyticsError, setAnalyticsError] = useState<string | null>(null)
   const [activeMetric, setActiveMetric] = useState<"views" | "downloads" | "impressions" | "plays" | null>(null)
 
-  const recordTitle: string = record?.title ?? recordId ?? ""
+  const labelField = process.env.NEXT_PUBLIC_DAM_DASHBOARD_LABEL_FIELD
+  const recordTitle: string = (() => {
+    if (!record) return recordId ?? ""
+    if (labelField) {
+      const f = ((record._embedded?.fields?.items ?? []) as any[]).find(
+        (f: any) => f.fieldName?.toLowerCase() === labelField.toLowerCase()
+      )
+      const val = f?.localizedValues?.[0]?.value ?? f?.localizedValues?.[0]?.values?.[0]
+      if (val) return String(val)
+    }
+    return record.title ?? recordId ?? ""
+  })()
   const thumbnailUrl = record?._embedded?.masterfilelatestversion?._embedded?.thumbnail?.uri as string | undefined
 
   // ── Fetch record ───────────────────────────────────────────────────────────
@@ -118,7 +129,7 @@ function AssetUsageContent() {
     if (!recordId || !client || !isConnected) return
     setRecordLoading(true)
     const expander = Expander.create()
-      .for<AprimoRecord>("Record").expand("masterfilelatestversion")
+      .for<AprimoRecord>("Record").expand("masterfilelatestversion", "fields")
       .for<FileVersion>("FileVersion").expand("thumbnail")
     client.records.getById(recordId, expander)
       .then(res => {
@@ -361,7 +372,8 @@ function AssetUsageContent() {
               <img src={thumbnailUrl} alt={recordTitle} className="h-20 w-32 object-cover rounded-md bg-muted flex-shrink-0" />
             )}
             <div className="flex flex-col gap-1 min-w-0">
-              <h1 className="text-xl font-semibold leading-tight">{record.contentType}</h1>
+              <h1 className="text-xl font-semibold leading-tight">{recordTitle || recordId}</h1>
+              <p className="text-xs text-muted-foreground">{record.contentType}</p>
               <p className="text-xs text-muted-foreground font-mono">{recordId}</p>
             </div>
           </div>
