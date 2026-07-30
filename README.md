@@ -161,8 +161,11 @@ Opens a saved canvas template and lets users fill its editable fields, then save
 
 ### DAM Usage Dashboard
 
-An example analytics dashboard built on the [Aprimo Analytics API](https://developers.aprimo.com/docs/reporting/analytics-api). Opened directly from the home page — no page hook required.
+A live example of what's possible with the [Aprimo Analytics API](https://developers.aprimo.com/docs/reporting/analytics-api) — every metric is queried in real time with no data warehouse or pre-aggregation required. Opened directly from the home page — no page hook required.
 
+> For production reporting, scheduled exports, and enterprise-scale visualisations, connecting a dedicated BI tool such as **Power BI** directly to the Analytics API is strongly recommended.
+
+- **Assets tile** — total record count in the DAM, scoped to the active collection or classification filter
 - **KPI tiles** — total views, downloads, impressions, plays, and active users for the selected date range; tiles act as tab controls that drill into a detail table
 - **Engagement chart** — line chart with one line per metric over time
 - **Top assets** — most-viewed and most-downloaded records in the selected period

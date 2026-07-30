@@ -730,6 +730,12 @@ function DashboardContent() {
         </button>
       </div>
 
+      {/* API note */}
+      <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+        This dashboard demonstrates what's possible with the Aprimo Analytics API — every metric is queried live, no data warehouse required.
+        For production reporting, scheduled exports, and enterprise-scale visualisations, a dedicated BI tool such as Power BI connected directly to the Analytics API is strongly recommended.
+      </div>
+
       {/* Date range selector + collection filter */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
