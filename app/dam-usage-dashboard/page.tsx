@@ -213,6 +213,7 @@ function DashboardContent() {
   const [recordUnavailable, setRecordUnavailable] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [totalAssetCount, setTotalAssetCount] = useState<number | null>(null)
   const [activeMetric, setActiveMetric] = useState<ActiveMetric>("topassets")
 
   const fetchData = useCallback(async () => {
@@ -456,6 +457,26 @@ function DashboardContent() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  const fetchAssetCount = useCallback(async () => {
+    if (!client || !isConnected) return
+    setTotalAssetCount(null)
+    try {
+      let expression = `NOT id = ''`
+      if (selectedCollectionId) {
+        expression = `collectionid = '${selectedCollectionId}'`
+      } else if (selectedClassificationId) {
+        expression = `classificationid = '${selectedClassificationId}'`
+      }
+      const res = await client.search.records({ searchExpression: { expression }, page: 1, pageSize: 1 } as never)
+      const data = res.data as unknown as { totalCount?: number }
+      setTotalAssetCount(data?.totalCount ?? null)
+    } catch {
+      setTotalAssetCount(null)
+    }
+  }, [client, isConnected, selectedCollectionId, selectedClassificationId])
+
+  useEffect(() => { fetchAssetCount() }, [fetchAssetCount])
+
   const fetchCollections = useCallback(async () => {
     if (!client || !isConnected || !connection) return
     setCollectionsLoading(true)
@@ -673,7 +694,7 @@ function DashboardContent() {
   const labelCellCls = (recordId: string) => recordLabels.has(recordId) ? "px-4 py-2" : "px-4 py-2 font-mono text-xs"
 
   const kpiTiles = [
-    { key: "topassets"   as const, label: "Top Assets",   value: undefined,         icon: Layers,   iconColor: "text-orange-500", activeBorder: "border-orange-500", activeBg: "bg-orange-500/5" },
+    { key: "topassets"   as const, label: "Assets",        value: totalAssetCount ?? undefined, icon: Layers, iconColor: "text-orange-500", activeBorder: "border-orange-500", activeBg: "bg-orange-500/5" },
     { key: "users"       as const, label: "Active Users", value: kpis?.activeUsers, icon: Users,    iconColor: "text-sky-500",    activeBorder: "border-sky-500",    activeBg: "bg-sky-500/5"    },
     { key: "views"       as const, label: "Views",        value: kpis?.views,       icon: Eye,      iconColor: "text-blue-500",   activeBorder: "border-blue-500",   activeBg: "bg-blue-500/5"   },
     { key: "downloads"   as const, label: "Downloads",    value: kpis?.downloads,   icon: Download, iconColor: "text-green-500",  activeBorder: "border-green-500",  activeBg: "bg-green-500/5"  },
