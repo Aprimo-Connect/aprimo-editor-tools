@@ -159,6 +159,35 @@ Opens a saved canvas template and lets users fill its editable fields, then save
 
 ---
 
+### DAM Usage Dashboard
+
+An example analytics dashboard built on the [Aprimo Analytics API](https://developers.aprimo.com/docs/reporting/analytics-api). Opened directly from the home page — no page hook required.
+
+- **KPI tiles** — total views, downloads, impressions, plays, and active users for the selected date range; tiles act as tab controls that drill into a detail table
+- **Engagement chart** — line chart with one line per metric over time
+- **Top assets** — most-viewed and most-downloaded records in the selected period
+- **Filter by collection** — scope all metrics to a static Aprimo collection
+- **Filter by classification** — scope all metrics to a classification subtree; the dropdown renders the full hierarchy with expand/collapse, using English display labels from the DAM
+- **Active users** — top users by views, downloads, or plays; drill into a single user to see their personal engagement chart and top assets
+- **UTM data** — impression breakdown by UTM parameter key and value
+
+**Filters and date range**
+
+| Control | Description |
+|---------|-------------|
+| Date range | 30 days, 90 days, 6 months, 1 year, all time |
+| Collection | Filter to a static Aprimo collection (mutually exclusive with classification) |
+| Classification | Filter to a classification subtree rooted at the env-var node (mutually exclusive with collection) |
+
+**Environment variables**
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_DAM_DASHBOARD_LABEL_FIELD` | No | Internal field name used to display asset titles in lists (e.g. `title`). Falls back to a truncated record ID when unset. |
+| `NEXT_PUBLIC_DAM_DASHBOARD_CLASSIFICATION_ROOT_ID` | No | GUID of the root classification node for the classification filter dropdown. When unset the classification filter is hidden. |
+
+---
+
 ### Duplicate Assets
 
 Find and resolve duplicate assets by matching on the master file's **checksum** and/or **filename**. Opened from the home page or the navbar (no page hook required) — it loads automatically on connect.
