@@ -210,6 +210,7 @@ function AssetUsageContent() {
         queryAnalytics(env, authHeader, {
           measures: ["Impressions.count"],
           dimensions: [
+            "Impressions.recordId",
             "ImpressionTrackingTypes.queryStringKey",
             "ImpressionTrackingTypeValues.value",
           ],

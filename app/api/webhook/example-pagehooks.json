@@ -1,0 +1,173 @@
+[
+  {
+    "name": "aprimoEditorToolMyBasket",
+    "type": "pageHook",
+    "translationKey": "aprimoEditorToolMyBasket",
+    "conditions": [
+      { "type": "userInGroups", "parameters": { "UserGroups": ["Administrators"] } }
+    ],
+    "parameters": {
+      "sendToken": "none",
+      "url": "https://<your-app-url>/api/webhook?action=mybasket",
+      "location": "New",
+      "timeout": 30,
+      "httpMethod": "POST"
+    }
+  },
+  {
+    "name": "aprimoEditorToolBasketEditor",
+    "type": "pageHook",
+    "translationKey": "aprimoEditorToolBasketEditor",
+    "conditions": [
+      { "type": "userInGroups", "parameters": { "UserGroups": ["Administrators"] } }
+    ],
+    "parameters": {
+      "sendToken": "none",
+      "url": "https://<your-app-url>/api/webhook?action=basketeditor",
+      "location": "New",
+      "timeout": 30,
+      "httpMethod": "POST"
+    }
+  },
+  {
+    "name": "aprimoEditorToolMyItem",
+    "type": "pageHook",
+    "translationKey": "aprimoEditorToolMyItem",
+    "conditions": [
+      { "type": "userInGroups", "parameters": { "UserGroups": ["Administrators"] } }
+    ],
+    "parameters": {
+      "sendToken": "none",
+      "url": "https://<your-app-url>/api/webhook?action=myitem&mode=singleitem",
+      "location": "New",
+      "timeout": 30,
+      "httpMethod": "POST"
+    }
+  },
+  {
+    "name": "aprimoEditorToolVideoResizer",
+    "type": "pageHook",
+    "translationKey": "aprimoEditorToolVideoResizer",
+    "conditions": [
+      { "type": "contentTypeIn", "parameters": { "Types": ["Video"] } },
+      { "type": "userInGroups", "parameters": { "UserGroups": ["Administrators"] } }
+    ],
+    "parameters": {
+      "sendToken": "none",
+      "url": "https://<your-app-url>/api/webhook?action=videoresizer&mode=singleitem",
+      "location": "New",
+      "timeout": 30,
+      "httpMethod": "POST"
+    }
+  },
+  {
+    "name": "aprimoEditorToolVideoStudio",
+    "type": "pageHook",
+    "translationKey": "aprimoEditorToolVideoStudio",
+    "conditions": [
+      { "type": "contentTypeIn", "parameters": { "Types": ["VideoProject"] } },
+      { "type": "userInGroups", "parameters": { "UserGroups": ["Administrators"] } }
+    ],
+    "parameters": {
+      "sendToken": "none",
+      "url": "https://<your-app-url>/api/webhook?action=videostudio&mode=singleitem",
+      "location": "New",
+      "timeout": 30,
+      "httpMethod": "POST"
+    }
+  },
+  {
+    "name": "aprimoEditorToolVideoBasket",
+    "type": "pageHook",
+    "translationKey": "aprimoEditorToolVideoBasket",
+    "conditions": [
+      { "type": "userInGroups", "parameters": { "UserGroups": ["Administrators"] } }
+    ],
+    "parameters": {
+      "sendToken": "none",
+      "url": "https://<your-app-url>/api/webhook?action=videostudiobasket",
+      "location": "New",
+      "timeout": 30,
+      "httpMethod": "POST"
+    }
+  },
+  {
+    "name": "aprimoEditorToolDynamicContent",
+    "type": "pageHook",
+    "translationKey": "aprimoEditorToolDynamicContent",
+    "conditions": [
+      { "type": "contentTypeIn", "parameters": { "Types": ["Image"] } },
+      { "type": "userInGroups", "parameters": { "UserGroups": ["Administrators"] } }
+    ],
+    "parameters": {
+      "sendToken": "none",
+      "url": "https://<your-app-url>/api/webhook?action=templates&mode=singleitem",
+      "location": "New",
+      "timeout": 30,
+      "httpMethod": "POST"
+    }
+  },
+  {
+    "name": "aprimoEditorToolAssetUsage",
+    "type": "pageHook",
+    "translationKey": "aprimoEditorToolAssetUsage",
+    "conditions": [
+      { "type": "userInGroups", "parameters": { "UserGroups": ["Administrators"] } }
+    ],
+    "parameters": {
+      "sendToken": "none",
+      "url": "https://<your-app-url>/api/webhook?action=assetusage&mode=singleitem",
+      "location": "New",
+      "timeout": 30,
+      "httpMethod": "POST"
+    }
+  },
+  {
+    "name": "aprimoEditorToolTranslateVideo",
+    "type": "pageHook",
+    "translationKey": "aprimoEditorToolTranslateVideo",
+    "conditions": [
+      { "type": "contentTypeIn", "parameters": { "Types": ["Video"] } },
+      { "type": "userInGroups", "parameters": { "UserGroups": ["Administrators"] } }
+    ],
+    "parameters": {
+      "sendToken": "none",
+      "url": "https://<your-app-url>/api/webhook?action=translatevideo&mode=singleitem",
+      "location": "New",
+      "timeout": 30,
+      "httpMethod": "POST"
+    }
+  },
+  {
+    "name": "aprimoEditorToolCreativeTemplateCreate",
+    "type": "pageHook",
+    "translationKey": "aprimoEditorToolCreativeTemplateCreate",
+    "conditions": [
+      { "type": "contentTypeIn", "parameters": { "Types": ["CreativeTemplate"] } },
+      { "type": "userInGroups", "parameters": { "UserGroups": ["Administrators"] } }
+    ],
+    "parameters": {
+      "sendToken": "none",
+      "url": "https://<your-app-url>/api/webhook?action=creativetemplatecreate&mode=singleitem",
+      "location": "New",
+      "timeout": 30,
+      "httpMethod": "POST"
+    }
+  },
+  {
+    "name": "aprimoEditorToolCreativeTemplateFill",
+    "type": "pageHook",
+    "translationKey": "aprimoEditorToolCreativeTemplateFill",
+    "conditions": [
+      { "type": "contentTypeIn", "parameters": { "Types": ["CreativeTemplate"] } },
+      { "type": "userInGroups", "parameters": { "UserGroups": ["Administrators"] } }
+    ],
+    "parameters": {
+      "sendToken": "none",
+      "url": "https://<your-app-url>/api/webhook?action=creativetemplatefill&mode=singleitem",
+      "location": "New",
+      "timeout": 30,
+      "httpMethod": "POST"
+    }
+  }
+]

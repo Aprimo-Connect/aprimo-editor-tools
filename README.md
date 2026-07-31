@@ -602,6 +602,15 @@ Once the action definition is created, add it to the appropriate Aprimo menu so 
 }
 ```
 
+**Example page hook configurations**
+
+[`app/api/webhook/example-pagehooks.json`](app/api/webhook/example-pagehooks.json) contains ready-to-use action definition JSON for all 11 supported page hook actions. Each entry includes the action name, URL (with `https://<your-app-url>` as a placeholder), a 30-second timeout, and an `Administrators` group condition so only admins see the menu item by default.
+
+To use it:
+1. Replace `<your-app-url>` throughout the file with your actual deployment URL (e.g. `aprimo-editor-tools.vercel.app`).
+2. Import each action definition into Aprimo via the Settings UI or the Aprimo API.
+3. Adjust the `conditions` array on each entry — for example, to expand visibility beyond Administrators or add content-type filters.
+
 ## Reference
 
 ### Data Flow

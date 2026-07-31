@@ -345,7 +345,7 @@ function DashboardContent() {
           queryAnalytics(env, authHeader, { measures: ["Downloads.count"], dimensions: ["Users.loginId"], ...drRange("Downloads.downloadDate"), order: { "Downloads.count": "desc" }, limit: 50 }),
           queryAnalytics(env, authHeader, { measures: ["PreviewPlaybacks.count"], dimensions: ["Users.loginId"], filters: pcf, ...drRange("PreviewPlaybacks.previewPlaybackDate"), order: { "PreviewPlaybacks.count": "desc" }, limit: 50 }),
           // UTM breakdown
-          queryAnalytics(env, authHeader, { measures: ["Impressions.count"], dimensions: ["ImpressionTrackingTypes.queryStringKey", "ImpressionTrackingTypeValues.value"], ...drRange("Impressions.hitDateTime"), order: { "Impressions.count": "desc" }, limit: 100 }),
+          queryAnalytics(env, authHeader, { measures: ["Impressions.count"], dimensions: ["Impressions.recordId", "ImpressionTrackingTypes.queryStringKey", "ImpressionTrackingTypeValues.value"], ...drRange("Impressions.hitDateTime"), order: { "Impressions.count": "desc" }, limit: 100 }),
         ])
 
         const uniqueUsers = new Set([
@@ -546,7 +546,6 @@ function DashboardContent() {
         allRaw.push(...(result.data?.items ?? []))
       }
 
-      console.log("[classifications] raw from API (%d total):", allRaw.length, allRaw.map((c: any) => ({ id: c.id, identifier: c.identifier, name: c.name, labels: c.labels })))
 
       // Normalize a classification ID: strip curly braces, lowercase, convert 32-char hex → UUID
       const normalizeId = (id: string) => toGuid(id.trim().replace(/^\{|\}$/g, "").toLowerCase())
@@ -609,7 +608,6 @@ function DashboardContent() {
             parentId,
           }
         })
-      console.log("[classifications] items (%d):", items.length, items.map(c => ({ depth: c.depth, label: c.label, id: c.id, identifier: c.identifier })))
       setClassifications(items)
     } catch {
       // non-critical
@@ -729,7 +727,7 @@ function DashboardContent() {
       {/* API note */}
       <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
         This dashboard demonstrates what's possible with the Aprimo Analytics API — every metric is queried live, no data warehouse required.
-        For production reporting, scheduled exports, and enterprise-scale visualisations, a dedicated BI tool such as Power BI connected directly to the Analytics API is strongly recommended.
+        For production reporting, scheduled exports, and enterprise-scale visualisations, a dedicated BI tool such as Power BI connected to the Analytics API is strongly recommended.
       </div>
 
       {/* Date range selector + collection filter */}
