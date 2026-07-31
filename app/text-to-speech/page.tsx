@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, CheckCircle2, XCircle, Mic } from "lucide-react"
 import { toast } from "sonner"
@@ -262,7 +261,7 @@ function TextToSpeechContent() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <main className="flex-1 p-6 flex flex-col gap-6 max-w-3xl mx-auto w-full">
+    <main className="flex-1 p-6 flex flex-col gap-6">
 
       {/* Intro */}
       <div className="flex flex-col gap-1.5">
@@ -275,26 +274,21 @@ function TextToSpeechContent() {
         </p>
       </div>
 
-      <Separator />
-
       {/* Record info (only when a record was passed in) */}
       {record && (
-        <>
-          <div className="flex items-start gap-4">
-            {thumbnailUrl && (
-              <img src={thumbnailUrl} alt={recordTitle} className="h-20 w-32 object-cover rounded-md bg-muted flex-shrink-0" />
-            )}
-            <div className="flex flex-col gap-1 min-w-0">
-              <h1 className="text-xl font-semibold leading-tight">{recordTitle}</h1>
-              <p className="text-xs text-muted-foreground font-mono">{recordId}</p>
-            </div>
+        <div className="rounded-lg border border-border bg-card p-4 flex items-start gap-4">
+          {thumbnailUrl && (
+            <img src={thumbnailUrl} alt={recordTitle} className="h-20 w-32 object-cover rounded-md bg-muted flex-shrink-0" />
+          )}
+          <div className="flex flex-col gap-1 min-w-0">
+            <h1 className="text-xl font-semibold leading-tight">{recordTitle}</h1>
+            <p className="text-xs text-muted-foreground font-mono">{recordId}</p>
           </div>
-          <Separator />
-        </>
+        </div>
       )}
 
       {/* Editable fields */}
-      <div className="flex flex-col gap-4">
+      <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-muted-foreground font-medium">Title</label>
           <Input
@@ -320,7 +314,7 @@ function TextToSpeechContent() {
 
       {/* Controls */}
       {(step === "idle" || step === "error") && (
-        <div className="flex flex-col gap-3">
+        <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-muted-foreground font-medium">Voice</label>
             <Select value={voiceId} onValueChange={setVoiceId}>
@@ -359,7 +353,7 @@ function TextToSpeechContent() {
 
       {/* Progress */}
       {step !== "idle" && (
-        <div className="flex flex-col gap-2">
+        <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-2">
           <h2 className="text-sm font-medium mb-1">Progress</h2>
           {pipelineOrder.map((s, idx) => {
             const isCompleted = step === "done" || (currentStepIdx > idx && step !== "error")

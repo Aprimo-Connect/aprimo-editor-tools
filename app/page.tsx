@@ -14,7 +14,7 @@ export default function Home() {
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
       <main className="flex-1 flex flex-col items-center justify-center px-4">
-        <div className="max-w-2xl w-full text-center space-y-6">
+        <div className="w-full text-center space-y-6">
           <h1 className="text-4xl font-bold tracking-tight">Aprimo Editor Tools</h1>
           <p className="text-lg text-muted-foreground">
             {isConnected
@@ -44,7 +44,7 @@ export default function Home() {
           {isConnected && (
             <div className="grid gap-4 sm:grid-cols-2">
               <a href={`https://${connection?.environment}.dam.aprimo.com/dam`}>
-                <div className="border border-border rounded-lg p-6 text-left hover:bg-muted/50 transition-colors cursor-pointer">
+                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
                   <div className="flex items-center gap-3 mb-2">
                     <House className="h-5 w-5 text-primary" />
                     <h2 className="text-lg font-semibold">Aprimo Home</h2>
@@ -55,7 +55,7 @@ export default function Home() {
                 </div>
               </a>
               <Link href="/video-studio">
-                <div className="border border-border rounded-lg p-6 text-left hover:bg-muted/50 transition-colors cursor-pointer">
+                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
                   <div className="flex items-center gap-3 mb-2">
                     <Clapperboard className="h-5 w-5 text-primary" />
                     <h2 className="text-lg font-semibold">Video Studio</h2>
@@ -66,7 +66,7 @@ export default function Home() {
                 </div>
               </Link>
               <Link href="/templates">
-                <div className="border border-border rounded-lg p-6 text-left hover:bg-muted/50 transition-colors cursor-pointer">
+                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
                   <div className="flex items-center gap-3 mb-2">
                     <LayoutTemplate className="h-5 w-5 text-primary" />
                     <h2 className="text-lg font-semibold">Dynamic Content</h2>
@@ -77,7 +77,7 @@ export default function Home() {
                 </div>
               </Link>
               <Link href="/bulk-upload">
-                <div className="border border-border rounded-lg p-6 text-left hover:bg-muted/50 transition-colors cursor-pointer">
+                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
                   <div className="flex items-center gap-3 mb-2">
                     <Upload className="h-5 w-5 text-primary" />
                     <h2 className="text-lg font-semibold">Bulk Upload</h2>
@@ -88,7 +88,7 @@ export default function Home() {
                 </div>
               </Link>
               <Link href="/excel-import">
-                <div className="border border-border rounded-lg p-6 text-left hover:bg-muted/50 transition-colors cursor-pointer">
+                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
                   <div className="flex items-center gap-3 mb-2">
                     <FileSpreadsheet className="h-5 w-5 text-primary" />
                     <h2 className="text-lg font-semibold">Excel Import</h2>
@@ -99,7 +99,7 @@ export default function Home() {
                 </div>
               </Link>
               <Link href="/duplicates">
-                <div className="border border-border rounded-lg p-6 text-left hover:bg-muted/50 transition-colors cursor-pointer">
+                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
                   <div className="flex items-center gap-3 mb-2">
                     <Copy className="h-5 w-5 text-primary" />
                     <h2 className="text-lg font-semibold">Duplicate Assets</h2>
@@ -110,7 +110,7 @@ export default function Home() {
                 </div>
               </Link>
               <Link href="/creative-template-create">
-                <div className="border border-border rounded-lg p-6 text-left hover:bg-muted/50 transition-colors cursor-pointer">
+                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
                   <div className="flex items-center gap-3 mb-2">
                     <PenLine className="h-5 w-5 text-primary" />
                     <h2 className="text-lg font-semibold">Canvas Template</h2>
@@ -121,7 +121,7 @@ export default function Home() {
                 </div>
               </Link>
               <Link href="/text-to-speech">
-                <div className="border border-border rounded-lg p-6 text-left hover:bg-muted/50 transition-colors cursor-pointer">
+                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
                   <div className="flex items-center gap-3 mb-2">
                     <Mic className="h-5 w-5 text-primary" />
                     <h2 className="text-lg font-semibold">Text to Speech</h2>
@@ -132,7 +132,7 @@ export default function Home() {
                 </div>
               </Link>
               <Link href="/dam-usage-dashboard">
-                <div className="border border-border rounded-lg p-6 text-left hover:bg-muted/50 transition-colors cursor-pointer">
+                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
                   <div className="flex items-center gap-3 mb-2">
                     <BarChart2 className="h-5 w-5 text-primary" />
                     <h2 className="text-lg font-semibold">DAM Usage Dashboard</h2>

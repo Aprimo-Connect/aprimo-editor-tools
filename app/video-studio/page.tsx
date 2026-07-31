@@ -178,7 +178,7 @@ function VideoStudioContent() {
 
 export default function VideoStudioPage() {
   return (
-    <div className="bg-background flex flex-col">
+    <div className="bg-card flex flex-col">
       <Navbar />
       <Suspense fallback={null}>
         <VideoStudioContent />

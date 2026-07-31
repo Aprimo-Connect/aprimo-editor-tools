@@ -6,6 +6,7 @@ import { useAprimo } from "@/context/aprimo-context"
 import { Badge } from "@/components/ui/badge"
 import { AprimoLogo } from "@/components/aprimo-logo"
 import { ModeToggle } from "@/components/mode-toggle"
+import { BrandToggle } from "@/components/brand-toggle"
 
 const ALL_FROM_ENV = !!(
   process.env.NEXT_PUBLIC_APRIMO_ENVIRONMENT &&
@@ -17,7 +18,7 @@ export function Navbar() {
   const { isConnected, connection } = useAprimo()
 
   return (
-    <nav className="bg-background sticky top-0 z-50">
+    <nav className="bg-card sticky top-0 z-50">
       <div className="border-b border-border px-6">
         <div className="flex items-center justify-between h-20">
           <Link href="/" className="py-2">
@@ -70,6 +71,7 @@ export function Navbar() {
                 <Settings className="h-4 w-4" />
               </button>
             )}
+            <BrandToggle />
             <ModeToggle />
           </div>
         </div>

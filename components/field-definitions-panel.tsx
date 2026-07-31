@@ -116,7 +116,7 @@ export function FieldDefinitionsPanel({
           onClick={() => setOpen(false)}
         />
       )}
-      <CollapsibleTrigger className="relative z-50 flex w-full items-center justify-between rounded-lg border bg-background px-4 py-3 text-sm font-medium">
+      <CollapsibleTrigger className="relative z-50 flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-sm font-medium">
         <span className="flex items-center gap-2">
           Field Definitions
           <Badge variant="secondary" className="text-xs font-normal">{fieldDefs.length}</Badge>
@@ -127,7 +127,7 @@ export function FieldDefinitionsPanel({
         {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </CollapsibleTrigger>
 
-      <CollapsibleContent className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border bg-background shadow-lg">
+      <CollapsibleContent className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border bg-card shadow-lg">
         <div className="px-4 pt-3 pb-2 space-y-3">
 
           {/* Search + read-only toggle */}

@@ -328,7 +328,7 @@ export default function BulkUploadPage() {
           </p>
 
           {/* Language */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-6 rounded-lg border border-border bg-card px-4 py-3">
             <Label htmlFor="language-sel" className="text-sm whitespace-nowrap">Language</Label>
             <Select value={languageId} onValueChange={setLanguageId}>
               <SelectTrigger id="language-sel" className="w-48 h-8 text-xs">

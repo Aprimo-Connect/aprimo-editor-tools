@@ -520,7 +520,7 @@ export default function ExcelImportPage() {
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
           className={`
-            flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-16 cursor-pointer transition-colors
+            flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-16 cursor-pointer transition-colors bg-card
             ${dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/30"}
           `}
         >
@@ -545,9 +545,9 @@ export default function ExcelImportPage() {
 
         {!loading && headers.length > 0 && (
           <div className="mt-6 space-y-6">
-            {/* Column selector */}
-            <div>
-              <div className="flex items-center justify-between mb-2 gap-3">
+            {/* Column selector + settings */}
+            <div className="rounded-lg border border-border bg-card p-4 space-y-4">
+              <div className="flex items-center justify-between gap-3">
                 <p className="text-xs text-muted-foreground">
                   {headers.length} column{headers.length !== 1 ? "s" : ""} found
                   {selectedHeaders.size > 0 && ` · ${selectedHeaders.size} selected`}
@@ -570,7 +570,7 @@ export default function ExcelImportPage() {
                         Highlighted classification / option values have no automatic match and need manual matching.
                       </p>
                     </DialogHeader>
-                    <div className="overflow-auto max-h-[70vh] border border-border rounded-lg">
+                    <div className="overflow-auto max-h-[70vh] border border-border rounded-lg bg-card">
                       <table className="w-full text-xs border-collapse">
                         <thead className="sticky top-0 bg-muted">
                           <tr>
@@ -624,45 +624,43 @@ export default function ExcelImportPage() {
                   )
                 })}
               </div>
+              {selectedHeaders.size > 0 && (
+                <div className="pt-2 border-t border-border space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Label htmlFor="record-id-col" className="text-sm whitespace-nowrap w-32">Record ID column</Label>
+                    <Select value={recordIdColumn} onValueChange={setRecordIdColumn}>
+                      <SelectTrigger id="record-id-col" className="w-56 h-8 text-xs">
+                        <SelectValue placeholder="Select a column…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from(selectedHeaders).map((h) => (
+                          <SelectItem key={h} value={h} className="text-xs font-mono">{h}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Label htmlFor="language-col" className="text-sm whitespace-nowrap w-32">Language</Label>
+                    <Select value={languageId} onValueChange={setLanguageId}>
+                      <SelectTrigger id="language-col" className="w-56 h-8 text-xs">
+                        <SelectValue placeholder="Select a language…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {languages.map((l) => (
+                          <SelectItem key={l.id} value={l.id} className="text-xs">{l.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
             </div>
-
-            {/* Record ID column + Language */}
-            {selectedHeaders.size > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="record-id-col" className="text-sm whitespace-nowrap w-32">Record ID column</Label>
-                  <Select value={recordIdColumn} onValueChange={setRecordIdColumn}>
-                    <SelectTrigger id="record-id-col" className="w-56 h-8 text-xs">
-                      <SelectValue placeholder="Select a column…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from(selectedHeaders).map((h) => (
-                        <SelectItem key={h} value={h} className="text-xs font-mono">{h}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="language-col" className="text-sm whitespace-nowrap w-32">Language</Label>
-                  <Select value={languageId} onValueChange={setLanguageId}>
-                    <SelectTrigger id="language-col" className="w-56 h-8 text-xs">
-                      <SelectValue placeholder="Select a language…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {languages.map((l) => (
-                        <SelectItem key={l.id} value={l.id} className="text-xs">{l.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
 
             {/* Field mappings */}
             {mappableColumns.length > 0 && (
               <div>
                 <p className="text-sm font-medium mb-3">Field mappings</p>
-                <div className="border border-border rounded-lg overflow-hidden">
+                <div className="border border-border rounded-lg overflow-hidden bg-card">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border bg-muted/50">
@@ -734,7 +732,7 @@ export default function ExcelImportPage() {
                   <p className="text-xs text-muted-foreground mb-3">
                     Match each Excel value to an Aprimo classification.
                   </p>
-                  <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="border border-border rounded-lg overflow-hidden bg-card">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border bg-muted/50">
@@ -786,7 +784,7 @@ export default function ExcelImportPage() {
                       ? " This field accepts multiple options — separate values in a cell with semicolons."
                       : " This field accepts a single option per record."}
                   </p>
-                  <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="border border-border rounded-lg overflow-hidden bg-card">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border bg-muted/50">
@@ -863,7 +861,7 @@ export default function ExcelImportPage() {
 
             {/* Save results */}
             {saveResults.length > 0 && (
-              <div className="border border-border rounded-lg overflow-hidden">
+              <div className="border border-border rounded-lg overflow-hidden bg-card">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/50">

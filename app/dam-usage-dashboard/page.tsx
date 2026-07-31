@@ -696,10 +696,10 @@ function DashboardContent() {
   const kpiTiles = [
     { key: "topassets"   as const, label: "Assets",        value: totalAssetCount ?? undefined, icon: Layers, iconColor: "text-orange-500", activeBorder: "border-orange-500", activeBg: "bg-orange-500/5" },
     { key: "users"       as const, label: "Active Users", value: kpis?.activeUsers, icon: Users,    iconColor: "text-sky-500",    activeBorder: "border-sky-500",    activeBg: "bg-sky-500/5"    },
-    { key: "views"       as const, label: "Views",        value: kpis?.views,       icon: Eye,      iconColor: "text-blue-500",   activeBorder: "border-blue-500",   activeBg: "bg-blue-500/5"   },
-    { key: "downloads"   as const, label: "Downloads",    value: kpis?.downloads,   icon: Download, iconColor: "text-green-500",  activeBorder: "border-green-500",  activeBg: "bg-green-500/5"  },
-    { key: "impressions" as const, label: "Impressions",  value: kpis?.impressions, icon: Zap,      iconColor: "text-amber-500",  activeBorder: "border-amber-500",  activeBg: "bg-amber-500/5"  },
-    { key: "plays"       as const, label: "Plays",        value: kpis?.plays,       icon: Play,     iconColor: "text-purple-500", activeBorder: "border-purple-500", activeBg: "bg-purple-500/5" },
+    { key: "views"       as const, label: "Views",        value: kpis?.views,       icon: Eye,      iconColor: "text-[var(--chart-1)]", activeBorder: "border-[var(--chart-1)]", activeBg: "bg-[var(--chart-1)]/10" },
+    { key: "downloads"   as const, label: "Downloads",    value: kpis?.downloads,   icon: Download, iconColor: "text-[var(--chart-2)]", activeBorder: "border-[var(--chart-2)]", activeBg: "bg-[var(--chart-2)]/10" },
+    { key: "impressions" as const, label: "Impressions",  value: kpis?.impressions, icon: Zap,      iconColor: "text-[var(--chart-3)]", activeBorder: "border-[var(--chart-3)]", activeBg: "bg-[var(--chart-3)]/10" },
+    { key: "plays"       as const, label: "Plays",        value: kpis?.plays,       icon: Play,     iconColor: "text-[var(--chart-4)]", activeBorder: "border-[var(--chart-4)]", activeBg: "bg-[var(--chart-4)]/10" },
   ]
 
   const drillConfig: Record<string, { assets: AssetRow[]; assetLabel: string; users: UserRow[]; userLabel: string }> = {
@@ -712,14 +712,10 @@ function DashboardContent() {
   const showDrillDown = activeMetric !== null
 
   return (
-    <main className="flex-1 p-6 flex flex-col gap-6 max-w-6xl mx-auto w-full">
+    <main className="flex-1 p-6 flex flex-col gap-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">DAM Usage Dashboard</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{connection?.environment}</p>
-        </div>
+      <div className="flex items-center justify-end">
         <button
           onClick={fetchData}
           disabled={loading}
@@ -731,13 +727,13 @@ function DashboardContent() {
       </div>
 
       {/* API note */}
-      <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+      <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
         This dashboard demonstrates what's possible with the Aprimo Analytics API — every metric is queried live, no data warehouse required.
         For production reporting, scheduled exports, and enterprise-scale visualisations, a dedicated BI tool such as Power BI connected directly to the Analytics API is strongly recommended.
       </div>
 
       {/* Date range selector + collection filter */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap rounded-lg border border-border bg-card px-4 py-3">
         <div className="flex items-center gap-2 flex-wrap">
           {DATE_RANGE_OPTIONS.map(opt => (
             <button
@@ -762,7 +758,7 @@ function DashboardContent() {
             <Popover open={collectionComboOpen} onOpenChange={setCollectionComboOpen}>
               <PopoverTrigger asChild>
                 <button
-                  className="flex items-center gap-1.5 border border-border rounded-md px-3 py-1.5 text-sm bg-background hover:bg-muted/50 transition-colors min-w-[160px] justify-between"
+                  className="flex items-center gap-1.5 border border-border rounded-md px-3 py-1.5 text-sm bg-card hover:bg-muted/50 transition-colors min-w-[160px] justify-between"
                   aria-label="Filter by collection"
                 >
                   <span className="flex items-center gap-1.5 min-w-0">
@@ -850,7 +846,7 @@ function DashboardContent() {
                 <Popover open={classificationComboOpen} onOpenChange={open => { setClassificationComboOpen(open); if (!open) setClassificationSearch("") }}>
                   <PopoverTrigger asChild>
                     <button
-                      className="flex items-center gap-1.5 border border-border rounded-md px-3 py-1.5 text-sm bg-background hover:bg-muted/50 transition-colors min-w-[160px] justify-between"
+                      className="flex items-center gap-1.5 border border-border rounded-md px-3 py-1.5 text-sm bg-card hover:bg-muted/50 transition-colors min-w-[160px] justify-between"
                       aria-label="Filter by classification"
                     >
                       <span className="flex items-center gap-1.5 min-w-0">
@@ -947,7 +943,7 @@ function DashboardContent() {
 
       {/* Activity chart */}
       {chartData.length > 0 && (
-        <div className="border border-border rounded-lg p-4 flex flex-col gap-3">
+        <div className="border border-border rounded-lg p-4 flex flex-col gap-3 bg-card">
           <h2 className="text-sm font-medium">Activity over time</h2>
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
@@ -956,10 +952,10 @@ function DashboardContent() {
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="impressions" stroke="#f59e0b" strokeWidth={lineWidth("impressions")} strokeOpacity={lineOpacity("impressions")} dot={false} name="Impressions" />
-              <Line type="monotone" dataKey="views"        stroke="#3b82f6" strokeWidth={lineWidth("views")}       strokeOpacity={lineOpacity("views")}       dot={false} name="Views" />
-              <Line type="monotone" dataKey="downloads"    stroke="#22c55e" strokeWidth={lineWidth("downloads")}   strokeOpacity={lineOpacity("downloads")}   dot={false} name="Downloads" />
-              <Line type="monotone" dataKey="plays"        stroke="#a855f7" strokeWidth={lineWidth("plays")}       strokeOpacity={lineOpacity("plays")}       dot={false} name="Plays" />
+              <Line type="monotone" dataKey="views"        stroke="var(--chart-1)" strokeWidth={lineWidth("views")}       strokeOpacity={lineOpacity("views")}       dot={false} name="Views" />
+              <Line type="monotone" dataKey="downloads"    stroke="var(--chart-2)" strokeWidth={lineWidth("downloads")}   strokeOpacity={lineOpacity("downloads")}   dot={false} name="Downloads" />
+              <Line type="monotone" dataKey="impressions"  stroke="var(--chart-3)" strokeWidth={lineWidth("impressions")} strokeOpacity={lineOpacity("impressions")} dot={false} name="Impressions" />
+              <Line type="monotone" dataKey="plays"        stroke="var(--chart-4)" strokeWidth={lineWidth("plays")}       strokeOpacity={lineOpacity("plays")}       dot={false} name="Plays" />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -977,11 +973,11 @@ function DashboardContent() {
               key={key}
               onClick={() => !collectionUnsupported && setActiveMetric(prev => prev === key ? null : key)}
               disabled={collectionUnsupported}
-              className={`border rounded-lg p-4 flex flex-col gap-2 text-left transition-colors ${
+              className={`border rounded-lg p-4 flex flex-col gap-2 text-left transition-colors bg-card ${
                 collectionUnsupported
                   ? "border-border opacity-40 cursor-not-allowed"
                   : activeMetric === key
-                    ? `${activeBorder} ${activeBg}`
+                    ? activeBorder
                     : "border-border hover:bg-muted/50"
               }`}
             >
@@ -1008,7 +1004,7 @@ function DashboardContent() {
       {showDrillDown && activeMetric !== "users" && drillConfig[activeMetric!] && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Left: top assets */}
-          <div className="border border-border rounded-lg flex flex-col">
+          <div className="border border-border rounded-lg flex flex-col bg-card">
             <div className="px-4 py-3 border-b border-border">
               <h2 className="text-sm font-medium">Top assets by {drillConfig[activeMetric!].assetLabel.toLowerCase()}</h2>
             </div>
@@ -1039,8 +1035,8 @@ function DashboardContent() {
                             {recordThumbnails.has(row.recordId) ? (
                               <img src={recordThumbnails.get(row.recordId)} alt="" className="h-8 w-8 rounded object-cover flex-shrink-0 bg-muted" />
                             ) : (
-                              <div className="h-8 w-8 rounded flex-shrink-0 bg-green-500/10 flex items-center justify-center">
-                                <FileImage className="h-4 w-4 text-green-600/50" />
+                              <div className="h-8 w-8 rounded flex-shrink-0 bg-primary/10 flex items-center justify-center">
+                                <FileImage className="h-4 w-4 text-primary/50" />
                               </div>
                             )}
                             {getLabel(row.recordId)}
@@ -1059,7 +1055,7 @@ function DashboardContent() {
           </div>
 
           {/* Right: users (views/downloads/plays) or UTM (impressions) */}
-          <div className="border border-border rounded-lg flex flex-col">
+          <div className="border border-border rounded-lg flex flex-col bg-card">
             {activeMetric === "impressions" ? (
               <>
                 <div className="px-4 py-3 border-b border-border">
@@ -1109,8 +1105,8 @@ function DashboardContent() {
                           <tr key={i} onClick={() => setSelectedUser(row.user)} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer">
                             <td className="px-4 py-2 text-primary font-medium">
                               <span className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-full flex-shrink-0 bg-green-500/10 flex items-center justify-center">
-                                  <CircleUser className="h-4 w-4 text-green-600/50" />
+                                <div className="h-8 w-8 rounded-full flex-shrink-0 bg-primary/10 flex items-center justify-center">
+                                  <CircleUser className="h-4 w-4 text-primary/50" />
                                 </div>
                                 {row.user}
                               </span>
@@ -1137,7 +1133,7 @@ function DashboardContent() {
             { title: "Views by user",     rows: viewsByUser,     countLabel: "Views"     },
             { title: "Downloads by user", rows: downloadsByUser, countLabel: "Downloads" },
           ].map(({ title, rows, countLabel }) => (
-            <div key={title} className="border border-border rounded-lg flex flex-col">
+            <div key={title} className="border border-border rounded-lg flex flex-col bg-card">
               <div className="px-4 py-3 border-b border-border">
                 <h2 className="text-sm font-medium">{title}</h2>
               </div>
@@ -1155,8 +1151,8 @@ function DashboardContent() {
                         <tr key={i} onClick={() => setSelectedUser(row.user)} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer">
                           <td className="px-4 py-2 text-primary font-medium">
                             <span className="flex items-center gap-2">
-                              <div className="h-8 w-8 rounded-full flex-shrink-0 bg-green-500/10 flex items-center justify-center">
-                                <CircleUser className="h-4 w-4 text-green-600/50" />
+                              <div className="h-8 w-8 rounded-full flex-shrink-0 bg-primary/10 flex items-center justify-center">
+                                <CircleUser className="h-4 w-4 text-primary/50" />
                               </div>
                               {row.user}
                             </span>
@@ -1182,7 +1178,7 @@ function DashboardContent() {
             { title: "Top Viewed Assets",     rows: topViewed,     countLabel: "Views",     unsupported: false },
             { title: "Top Downloaded Assets", rows: topDownloaded, countLabel: "Downloads", unsupported: !!selectedCollectionId },
           ].map(({ title, rows, countLabel, unsupported }) => (
-            <div key={title} className={`border border-border rounded-lg flex flex-col ${unsupported ? "opacity-40" : ""}`}>
+            <div key={title} className={`border border-border rounded-lg flex flex-col bg-card ${unsupported ? "opacity-40" : ""}`}>
               <div className="px-4 py-3 border-b border-border">
                 <h2 className="text-sm font-medium">{title}</h2>
               </div>
@@ -1215,8 +1211,8 @@ function DashboardContent() {
                               {recordThumbnails.has(row.recordId) ? (
                                 <img src={recordThumbnails.get(row.recordId)} alt="" className="h-8 w-8 rounded object-cover flex-shrink-0 bg-muted" />
                               ) : (
-                                <div className="h-8 w-8 rounded flex-shrink-0 bg-green-500/10 flex items-center justify-center">
-                                  <FileImage className="h-4 w-4 text-green-600/50" />
+                                <div className="h-8 w-8 rounded flex-shrink-0 bg-primary/10 flex items-center justify-center">
+                                  <FileImage className="h-4 w-4 text-primary/50" />
                                 </div>
                               )}
                               {getLabel(row.recordId)}
@@ -1268,7 +1264,7 @@ function DashboardContent() {
                   { label: "Views",       value: userActivity.totalViews,      icon: Eye,      iconColor: "text-blue-500"  },
                   { label: "Downloads",   value: userActivity.totalDownloads,  icon: Download, iconColor: "text-green-500" },
                 ].map(({ label, value, icon: Icon, iconColor }) => (
-                  <div key={label} className="border border-border rounded-lg p-3 flex flex-col gap-1.5">
+                  <div key={label} className="border border-border rounded-lg p-3 flex flex-col gap-1.5 bg-card">
                     <div className="flex items-center gap-2">
                       <Icon className={`h-3.5 w-3.5 ${iconColor}`} />
                       <span className="text-xs text-muted-foreground">{label}</span>
@@ -1282,7 +1278,7 @@ function DashboardContent() {
 
               {/* Activity chart */}
               {userActivity.chartData.length > 0 && (
-                <div className="border border-border rounded-lg p-4 flex flex-col gap-3">
+                <div className="border border-border rounded-lg p-4 flex flex-col gap-3 bg-card">
                   <h3 className="text-sm font-medium">Activity over time</h3>
                   <ResponsiveContainer width="100%" height={180}>
                     <LineChart data={userActivity.chartData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
@@ -1291,8 +1287,8 @@ function DashboardContent() {
                       <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
                       <Tooltip />
                       <Legend />
-                      <Line type="monotone" dataKey="views"     stroke="#3b82f6" strokeWidth={2} dot={false} name="Views"     />
-                      <Line type="monotone" dataKey="downloads" stroke="#22c55e" strokeWidth={2} dot={false} name="Downloads" />
+                      <Line type="monotone" dataKey="views"     stroke="var(--chart-1)" strokeWidth={2} dot={false} name="Views"     />
+                      <Line type="monotone" dataKey="downloads" stroke="var(--chart-2)" strokeWidth={2} dot={false} name="Downloads" />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -1304,7 +1300,7 @@ function DashboardContent() {
                   { title: "Top Viewed Assets",     rows: userActivity.topViewedAssets,     countLabel: "Views"     },
                   { title: "Top Downloaded Assets", rows: userActivity.topDownloadedAssets, countLabel: "Downloads" },
                 ].map(({ title, rows, countLabel }) => (
-                  <div key={title} className="border border-border rounded-lg flex flex-col">
+                  <div key={title} className="border border-border rounded-lg flex flex-col bg-card">
                     <div className="px-3 py-2.5 border-b border-border">
                       <h3 className="text-xs font-medium">{title}</h3>
                     </div>

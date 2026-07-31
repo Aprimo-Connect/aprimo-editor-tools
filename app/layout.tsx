@@ -20,13 +20,7 @@ export const metadata: Metadata = {
   description: 'Connect and manage your Aprimo DAM environment',
   generator: 'v0.app',
   icons: {
-    icon: [
-      { url: '/icons/favicon-16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/icons/favicon-32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/icons/favicon-48.png', sizes: '48x48', type: 'image/png' },
-      { url: '/icons/favicon-192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/icons/favicon-512.png', sizes: '512x512', type: 'image/png' },
-    ],
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
     apple: '/icons/apple-touch-icon.png',
   },
 }

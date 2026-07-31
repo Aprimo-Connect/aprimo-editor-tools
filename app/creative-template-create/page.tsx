@@ -1227,7 +1227,7 @@ function CanvasPage() {
           </div>
 
           {/* Toolbar */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-4 py-3">
             <Input
               value={layout.name}
               onChange={(e) => setLayout((p) => ({ ...p, name: e.target.value }))}

@@ -343,7 +343,7 @@ export function VideoTimeline({
   const iconBtn = "h-5 w-5 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
 
   return (
-    <div className="shrink-0 border-t border-border bg-background select-none">
+    <div className="shrink-0 border-t border-border bg-card select-none">
       <div className="flex">
         {/* Fixed label column */}
         <div className="w-32 shrink-0 border-r border-border">
@@ -353,8 +353,8 @@ export function VideoTimeline({
             <button className={iconBtn} onClick={fitToContent} title="Fit to content" style={{ fontSize: 9, width: "auto", paddingInline: 2 }}>Fit</button>
             <button className={iconBtn} onClick={zoomIn} title="Zoom in"><Plus className="h-3 w-3" /></button>
           </div>
-          {TRACKS.filter((t) => !(disableFades && t.label === "Transitions")).map(({ label, icon: Icon, color, bg }) => (
-            <div key={label} className={`h-12 flex items-center gap-2 px-3 border-b border-border last:border-0 ${bg}`}>
+          {TRACKS.filter((t) => !(disableFades && t.label === "Transitions")).map(({ label, icon: Icon, color }) => (
+            <div key={label} className="h-12 flex items-center gap-2 px-3 border-b border-border last:border-0">
               <Icon className={`h-3.5 w-3.5 shrink-0 ${color}`} />
               <span className={`text-xs font-medium ${color}`}>{label}</span>
             </div>

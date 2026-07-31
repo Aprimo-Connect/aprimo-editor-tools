@@ -345,10 +345,10 @@ function AssetUsageContent() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const metricTiles = [
-    { key: "views"       as const, label: "Views",       value: stats?.views,       icon: Eye,      iconColor: "text-blue-500",   activeBorder: "border-blue-500",   activeBg: "bg-blue-500/5"   },
-    { key: "downloads"   as const, label: "Downloads",   value: stats?.downloads,   icon: Download, iconColor: "text-green-500",  activeBorder: "border-green-500",  activeBg: "bg-green-500/5"  },
-    { key: "impressions" as const, label: "Impressions", value: stats?.impressions, icon: Zap,      iconColor: "text-amber-500",  activeBorder: "border-amber-500",  activeBg: "bg-amber-500/5"  },
-    { key: "plays"       as const, label: "Plays",       value: stats?.plays,       icon: Play,     iconColor: "text-purple-500", activeBorder: "border-purple-500", activeBg: "bg-purple-500/5" },
+    { key: "views"       as const, label: "Views",       value: stats?.views,       icon: Eye,      iconColor: "text-[var(--chart-1)]", activeBorder: "border-[var(--chart-1)]", activeBg: "bg-[var(--chart-1)]/10" },
+    { key: "downloads"   as const, label: "Downloads",   value: stats?.downloads,   icon: Download, iconColor: "text-[var(--chart-2)]", activeBorder: "border-[var(--chart-2)]", activeBg: "bg-[var(--chart-2)]/10" },
+    { key: "impressions" as const, label: "Impressions", value: stats?.impressions, icon: Zap,      iconColor: "text-[var(--chart-3)]", activeBorder: "border-[var(--chart-3)]", activeBg: "bg-[var(--chart-3)]/10" },
+    { key: "plays"       as const, label: "Plays",       value: stats?.plays,       icon: Play,     iconColor: "text-[var(--chart-4)]", activeBorder: "border-[var(--chart-4)]", activeBg: "bg-[var(--chart-4)]/10" },
   ]
 
   const lineOpacity = (key: string) => activeMetric === null || activeMetric === key ? 1 : 0.12
@@ -362,7 +362,7 @@ function AssetUsageContent() {
   const activeUserTable = activeMetric && activeMetric !== "impressions" ? userTables[activeMetric] : null
 
   return (
-    <main className="flex-1 p-6 flex flex-col gap-6 max-w-4xl mx-auto w-full">
+    <main className="flex-1 p-6 flex flex-col gap-6">
 
       {/* Record header */}
       {record && (
@@ -382,7 +382,7 @@ function AssetUsageContent() {
       )}
 
       {/* Date range selector */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap rounded-lg border border-border bg-card px-4 py-3">
         {DATE_RANGE_OPTIONS.map(opt => (
           <button
             key={opt.key}
@@ -405,7 +405,7 @@ function AssetUsageContent() {
 
       {/* Engagement chart */}
       {chartData.length > 0 && (
-        <div className="border border-border rounded-lg p-4 flex flex-col gap-3">
+        <div className="border border-border rounded-lg p-4 flex flex-col gap-3 bg-card">
           <h2 className="text-sm font-medium">Engagement over time</h2>
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
@@ -414,10 +414,10 @@ function AssetUsageContent() {
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="impressions" stroke="#f59e0b" strokeWidth={lineWidth("impressions")} strokeOpacity={lineOpacity("impressions")} dot={false} name="Impressions" />
-              <Line type="monotone" dataKey="views"        stroke="#3b82f6" strokeWidth={lineWidth("views")}       strokeOpacity={lineOpacity("views")}       dot={false} name="Views" />
-              <Line type="monotone" dataKey="downloads"    stroke="#22c55e" strokeWidth={lineWidth("downloads")}   strokeOpacity={lineOpacity("downloads")}   dot={false} name="Downloads" />
-              <Line type="monotone" dataKey="plays"        stroke="#a855f7" strokeWidth={lineWidth("plays")}       strokeOpacity={lineOpacity("plays")}       dot={false} name="Plays" />
+              <Line type="monotone" dataKey="views"        stroke="var(--chart-1)" strokeWidth={lineWidth("views")}       strokeOpacity={lineOpacity("views")}       dot={false} name="Views" />
+              <Line type="monotone" dataKey="downloads"    stroke="var(--chart-2)" strokeWidth={lineWidth("downloads")}   strokeOpacity={lineOpacity("downloads")}   dot={false} name="Downloads" />
+              <Line type="monotone" dataKey="impressions"  stroke="var(--chart-3)" strokeWidth={lineWidth("impressions")} strokeOpacity={lineOpacity("impressions")} dot={false} name="Impressions" />
+              <Line type="monotone" dataKey="plays"        stroke="var(--chart-4)" strokeWidth={lineWidth("plays")}       strokeOpacity={lineOpacity("plays")}       dot={false} name="Plays" />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -429,9 +429,9 @@ function AssetUsageContent() {
           <button
             key={key}
             onClick={() => setActiveMetric(prev => prev === key ? null : key)}
-            className={`border rounded-lg p-4 flex flex-col gap-2 text-left transition-colors ${
+            className={`border rounded-lg p-4 flex flex-col gap-2 text-left transition-colors bg-card ${
               activeMetric === key
-                ? `${activeBorder} ${activeBg}`
+                ? activeBorder
                 : "border-border hover:bg-muted/50"
             }`}
           >
@@ -449,7 +449,7 @@ function AssetUsageContent() {
       {/* Detail table — controlled by active tile */}
 
       {activeUserTable && (
-        <div className="border border-border rounded-lg flex flex-col">
+        <div className="border border-border rounded-lg flex flex-col bg-card">
           <div className="px-4 py-3 border-b border-border">
             <h2 className="text-sm font-medium">{activeUserTable.title}</h2>
           </div>
@@ -479,7 +479,7 @@ function AssetUsageContent() {
       )}
 
       {activeMetric === "impressions" && (
-        <div className="border border-border rounded-lg flex flex-col">
+        <div className="border border-border rounded-lg flex flex-col bg-card">
           <div className="px-4 py-3 border-b border-border">
             <h2 className="text-sm font-medium">Impressions by day &amp; UTM</h2>
           </div>

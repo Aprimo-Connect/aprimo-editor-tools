@@ -220,7 +220,7 @@ export function StudioSidebar({
   const anyLoading = assets.some((a) => a.loading)
 
   return (
-    <div className="w-72 shrink-0 border-r border-border flex flex-col">
+    <div className="w-72 shrink-0 border-r border-border flex flex-col bg-card">
       <div className="flex border-b border-border shrink-0">
         <button
           onClick={() => setSidebarTab("assets")}

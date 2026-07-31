@@ -10,7 +10,6 @@ import type { Record as AprimoRecord, FileVersion } from "aprimo-js/model"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { Loader2, CheckCircle2, XCircle, ExternalLink, Languages } from "lucide-react"
 import { toast } from "sonner"
 
@@ -303,7 +302,7 @@ function DubVideoContent() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <main className="flex-1 p-6 flex flex-col gap-6 max-w-3xl mx-auto w-full">
+    <main className="flex-1 p-6 flex flex-col gap-6">
 
       {/* Record info */}
       <div className="flex items-start gap-4">
@@ -316,11 +315,9 @@ function DubVideoContent() {
         </div>
       </div>
 
-      <Separator />
-
       {/* Controls */}
       {(step === "idle" || step === "error") && (
-        <div className="flex flex-col gap-4">
+        <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-4">
           <div className="flex items-center gap-2">
             <Languages className="h-4 w-4" />
             <h2 className="text-base font-semibold">Translate Video</h2>
@@ -347,13 +344,12 @@ function DubVideoContent() {
               {step === "error" ? "Retry" : "Start translation"}
             </Button>
           </div>
-
         </div>
       )}
 
       {/* Progress steps */}
       {step !== "idle" && (
-        <div className="flex flex-col gap-2">
+        <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-2">
           <h2 className="text-sm font-medium mb-1">Progress</h2>
           {PIPELINE_ORDER.map((s, idx) => {
             const isCompleted = step === "done" || (currentStepIdx > idx && step !== "error")
