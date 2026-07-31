@@ -250,10 +250,12 @@ function BasketExampleContent() {
             </div>
           </div>
 
-          {viewMode === "table"
-            ? <RecordsTable records={records} tableFields={tableFields} fieldDefs={fieldDefs} ctx={ctx} />
-            : <RecordsGrid records={records} tableFields={tableFields} fieldDefs={fieldDefs} ctx={ctx} showPreview={gridShowPreview} showContentType={gridShowContentType} showStatus={gridShowStatus} />
-          }
+          <div className="rounded-lg border border-border bg-card overflow-hidden">
+            {viewMode === "table"
+              ? <RecordsTable records={records} tableFields={tableFields} fieldDefs={fieldDefs} ctx={ctx} />
+              : <RecordsGrid records={records} tableFields={tableFields} fieldDefs={fieldDefs} ctx={ctx} showPreview={gridShowPreview} showContentType={gridShowContentType} showStatus={gridShowStatus} />
+            }
+          </div>
         </>
       )}
     </main>

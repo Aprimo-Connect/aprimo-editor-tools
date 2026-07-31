@@ -368,17 +368,19 @@ function BasketEditorContent() {
             </p>
           )}
 
-          <RecordsTableEditable
-            records={records}
-            tableFields={tableFields}
-            fieldDefs={fieldDefs}
-            ctx={ctx}
-            classifications={classifications}
-            edits={edits}
-            onEdit={onEdit}
-            showContentType={showContentType}
-            showStatus={showStatus}
-          />
+          <div className="rounded-lg border border-border bg-card overflow-hidden">
+            <RecordsTableEditable
+              records={records}
+              tableFields={tableFields}
+              fieldDefs={fieldDefs}
+              ctx={ctx}
+              classifications={classifications}
+              edits={edits}
+              onEdit={onEdit}
+              showContentType={showContentType}
+              showStatus={showStatus}
+            />
+          </div>
 
           {saveResults.some((r) => !r.success) && (
             <div className="mt-4 border border-border rounded-lg overflow-hidden bg-card">
