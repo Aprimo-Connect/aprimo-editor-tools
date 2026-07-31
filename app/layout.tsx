@@ -16,12 +16,15 @@ const roboto = Roboto({
 
 
 export const metadata: Metadata = {
-  title: 'Aprimo Editor Tools',
+  title: {
+    default: 'Aprimo Editor Tools',
+    template: 'Aprimo Editor Tools | %s',
+  },
   description: 'Connect and manage your Aprimo DAM environment',
   generator: 'v0.app',
   icons: {
     icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
-    apple: '/icons/apple-touch-icon.png',
+    apple: '/icons/apple-touch-icon.svg',
   },
 }
 
