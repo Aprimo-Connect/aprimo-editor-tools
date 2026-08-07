@@ -41,7 +41,8 @@ export function getFileRolesAndLinks(path: string, config: PackageConfig): { rol
 
 // ── XML → config parser ────────────────────────────────────────────────────────
 
-const _serializer = new XMLSerializer()
+let _serializer: XMLSerializer | null = null
+const getSerializer = () => (_serializer ??= new XMLSerializer())
 
 export function newId() {
   return Math.random().toString(36).slice(2, 10)
@@ -103,7 +104,7 @@ function parsePackageEl(pkg: Element): PackageConfig {
     }
   })
 
-  const rawXml = _serializer.serializeToString(pkg)
+  const rawXml = getSerializer().serializeToString(pkg)
 
   return {
     id: newId(),
