@@ -26,32 +26,7 @@ export function Navbar() {
           </Link>
 
           <div className="flex items-center gap-6 text-sm">
-            {isConnected && (
-              <Link href="/bulk-upload" className="text-muted-foreground hover:text-foreground transition-colors">
-                Bulk Upload
-              </Link>
-            )}
-            {isConnected && (
-              <Link href="/excel-import" className="text-muted-foreground hover:text-foreground transition-colors">
-                Excel Import
-              </Link>
-            )}
-{isConnected && (
-              <Link href="/creative-template-create" className="text-muted-foreground hover:text-foreground transition-colors">
-                Create Template
-              </Link>
-            )}
-            {isConnected && (
-              <Link href="/duplicates" className="text-muted-foreground hover:text-foreground transition-colors">
-                Duplicates
-              </Link>
-            )}
-            {isConnected && (
-              <Link href="/dam-usage-dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
-                DAM Usage Dashboard
-              </Link>
-            )}
-{isConnected ? (
+            {isConnected ? (
               <Badge variant="outline" className="flex items-center gap-1.5 border-success text-success">
                 <Wifi className="h-3 w-3" />
                 {connection?.environment}

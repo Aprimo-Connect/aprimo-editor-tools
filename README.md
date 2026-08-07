@@ -457,6 +457,43 @@ Video Studio supports two webhook action modes:
 
 ---
 
+### Package Designer
+
+Build and edit Aprimo package ingestion configurations (`.packageIngestionConfiguration`). Opens directly from the home page — no page hook required. Does not write back to Aprimo; the final XML is copied to the clipboard for pasting into the Aprimo system setting.
+
+**Workflow**
+
+1. Optionally drop a `.zip` file onto the file tree panel. The zip is parsed in-browser and its contents are shown as a navigable tree. File names are color-coded by role (primary, preview, additional, linked-pubItem, linked-recordLink) based on the active package's regex rules, and role badges appear inline.
+2. On the **Current Config** tab, load the existing `.packageIngestionConfiguration` from your Aprimo environment (**Load package definitions from Aprimo**), or start with **New Package**.
+3. The package list shows all packages in evaluation-priority order (top = first evaluated). When a zip is loaded, each package's identification rules are tested and the cards show match / partial-match / no-match indicators. If more than one package fully matches the zip, the lower-priority duplicates are flagged with an orange **"hidden by …"** badge alongside the green match badge.
+4. Reorder packages with the ↑ / ↓ buttons. Delete with the trash icon.
+5. Click **XML** on any card to open an editable XML dialog pre-filled with the package's current generated XML. Edit directly, **Validate** to check syntax, **Apply** to commit, or **Copy** to grab the text.
+6. Click **Edit** on a card (or use the **Configure** tab) to open the form editor for that package.
+7. On the **Configure** tab, set identification rules (with a **Test Match** button to check against the loaded zip), primary file and preview regexes, additional files (with purpose and usages), and linked records (with link type, duplicate checking, content type, and classifications). Clicking any regex input highlights its matches in the file tree live.
+8. Click a file or folder in the tree to open the assignment panel. A visual segment builder lets you toggle each path part between exact / extension / wildcard modes and shows a plain-English description of the resulting pattern. Switch to raw regex mode for full control. Choose a role (identification, primary, preview, additional, linked record) and click **Apply** to write the regex into the config.
+9. On the **XML Output** tab, review the merged `<packages>` XML for all packages in list order, then **Copy XML** to paste into the Aprimo `.packageIngestionConfiguration` system setting.
+
+**Current Config tab — package cards**
+
+| Indicator | Meaning |
+|-----------|---------|
+| ✓ green / "matches zip" | All identification rules matched the loaded zip |
+| ½ amber | Some but not all identification rules matched |
+| ✗ grey | No identification rules matched |
+| Orange "hidden by …" | Package matches, but a higher-priority package also matches — Aprimo would stop at the first match and never reach this one |
+
+**Configure tab — package sections**
+
+| Section | Description |
+|---------|-------------|
+| Package | Name, enabled toggle, content type (detect / fixed / keep) |
+| Identification Rules | Regexes Aprimo uses to detect the package type; all rules must match (AND logic); preset buttons for common types (InDesign, Photoshop, Illustrator, etc.) |
+| Primary File | Regex for the master file; optional preview regex |
+| Additional Files | One or more regexes with optional purpose (`review`, `spinset`, `3dpreview`) and usages |
+| Linked Records | One or more regexes with link type (`pubItem` / `recordLink`), duplicate-check mode, content type, and classifications |
+
+---
+
 ## Data Flow
 
 1. **Pagehook trigger** — The Aprimo UI sends a page hook POST to the Webhook Endpoint containing the action name and one or more record IDs.
