@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
+import { DropZone } from "@/components/ui/drop-zone"
 import { toast } from "sonner"
 import type { FieldDef, ClassificationNode } from "@/models/aprimo"
 import {
@@ -407,27 +408,23 @@ export default function BulkUploadPage() {
           {/* Drop zone */}
           <Card className="mb-6">
             <CardContent className="pt-6">
-              <div
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+              <DropZone
+                isDragging={isDragging}
+                onDragOver={() => setIsDragging(true)}
                 onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files) }}
+                onDrop={(e) => { setIsDragging(false); if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files) }}
                 onClick={() => fileInputRef.current?.click()}
-                className={cn(
-                  "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors",
-                  isDragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/30"
-                )}
-              >
-                <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm font-medium">Drop files here or click to browse</p>
-                <p className="text-xs text-muted-foreground mt-1">Multiple files supported</p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => e.target.files && addFiles(e.target.files)}
-                />
-              </div>
+                label="Drop files here or click to browse"
+                sublabel="Multiple files supported"
+                className="p-8"
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => e.target.files && addFiles(e.target.files)}
+              />
             </CardContent>
           </Card>
 

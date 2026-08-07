@@ -14,53 +14,11 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { drawLayout, type Fit, type Layer, type Layout, type TextSpan, type TextLayer, type ImageLayer } from "@/lib/creative-template-render"
-
-type CanvasTemplate = { id: string; name: string; savedAt: number; layouts: Layout[] }
+import { type CanvasTemplate, type ImageEdit, type FieldEdit, type PendingField, isHtml, stripHtml, collectEditable, applyEdits } from "./utils"
 import { useAprimo } from "@/context/aprimo-context"
 import { useContentSelector, type SelectedRecord } from "@/lib/use-content-selector"
 
 const OUTPUT_CLASSIFICATION_ID = process.env.NEXT_PUBLIC_CANVAS_TEMPLATE_CLASSIFICATION_ID ?? ""
-
-// ── Edit value for one field ─────────────────────────────────────────────────
-type TextEdit  = { type: "text";  text: string; spans?: TextSpan[] }
-type ImageEdit = { type: "image"; src: string; fit?: Fit }
-type FieldEdit = TextEdit | ImageEdit
-type PendingField = { id: string; kind: "image" }
-
-// ── HTML helpers ─────────────────────────────────────────────────────────────
-function isHtml(s: string): boolean { return /<[a-z][\s\S]*>/i.test(s) }
-function stripHtml(s: string): string {
-  return s
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p\s*>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
-    .replace(/&mdash;/g, "—").replace(/&ndash;/g, "–").replace(/&hellip;/g, "…").replace(/&lsquo;/g, "'").replace(/&rsquo;/g, "'").replace(/&ldquo;/g, "“").replace(/&rdquo;/g, "”")
-    .replace(/&#8212;/g, "—").replace(/&#8211;/g, "–").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-    .replace(/\n{2,}/g, "\n")
-    .trim()
-}
-
-// ── Tree helpers ─────────────────────────────────────────────────────────────
-function collectEditable(layers: Layer[]): Layer[] {
-  const out: Layer[] = []
-  for (const l of layers) {
-    if (!l.locked) out.push(l)
-    if (l.type === "shape") out.push(...collectEditable(l.children))
-  }
-  return out
-}
-
-function applyEdits(layers: Layer[], edits: Record<string, FieldEdit>): Layer[] {
-  return layers.map((l) => {
-    const edit = edits[l.id]
-    let updated: Layer = l
-    if (edit?.type === "text"  && l.type === "text")  updated = { ...l, content: { ...l.content, text: edit.text, spans: edit.spans } }
-    if (edit?.type === "image" && l.type === "image") updated = { ...l, content: { ...l.content, src: edit.src, ...(edit.fit ? { fit: edit.fit } : {}) } }
-    if (updated.type === "shape") return { ...updated, children: applyEdits(updated.children, edits) }
-    return updated
-  })
-}
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function FillTemplatePage() {

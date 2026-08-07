@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useAprimo } from "@/context/aprimo-context"
 import type { FieldDef, ClassificationNode, OptionItem } from "@/models/aprimo"
+import { DropZone } from "@/components/ui/drop-zone"
 import { buildClassificationTree, flattenForPicker } from "@/lib/classifications"
 import type { FlatNode } from "@/lib/classifications"
 
@@ -514,15 +515,13 @@ export default function ExcelImportPage() {
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
       <main className="flex-1 p-8 w-full">
-        <div
-          onClick={() => inputRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+        <DropZone
+          isDragging={dragging}
+          onDragOver={() => setDragging(true)}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
-          className={`
-            flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-16 cursor-pointer transition-colors bg-card
-            ${dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/30"}
-          `}
+          onClick={() => inputRef.current?.click()}
+          className="p-16 bg-card gap-3"
         >
           {file ? (
             <>
@@ -537,7 +536,7 @@ export default function ExcelImportPage() {
               <p className="text-xs text-muted-foreground">or click to browse · .xlsx / .xls</p>
             </>
           )}
-        </div>
+        </DropZone>
 
         <input ref={inputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={onInputChange} />
 
