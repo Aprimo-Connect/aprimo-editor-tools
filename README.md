@@ -16,7 +16,7 @@ Renders the contents of an Aprimo basket. Triggered via Aprimo page hook — rec
 |-----------|--------|-------------|
 | `requestId` | Webhook (multi-record mode) | UUID handle used to fetch the record list from Supabase |
 
-Webhook action: `mybasket` (default multi-record mode — no `&mode=singleitem`).
+Webhook action: `my-basket` (default multi-record mode — no `&mode=singleitem`).
 
 ### My Item
 
@@ -26,7 +26,7 @@ Displays a single Aprimo record. Triggered via Aprimo page hook — the record I
 |-----------|--------|-------------|
 | `record` | Webhook (`&mode=singleitem`) | The Aprimo record ID to display |
 
-Webhook action: `myitem` with `&mode=singleitem` appended to the webhook URL.
+Webhook action: `my-item` with `&mode=singleitem` appended to the webhook URL.
 
 ---
 
@@ -38,7 +38,7 @@ View engagement analytics for an Aprimo record — views, downloads, impressions
 |-----------|--------|-------------|
 | `record` | Webhook (`&mode=singleitem`) | The Aprimo record ID to show analytics for |
 
-Webhook action: `assetusage` with `&mode=singleitem` appended to the webhook URL.
+Webhook action: `asset-usage` with `&mode=singleitem` appended to the webhook URL.
 
 **Metrics**
 
@@ -67,7 +67,7 @@ An editable, spreadsheet-style view of an Aprimo basket. Like My Basket, it is t
 |-----------|--------|-------------|
 | `requestId` | Webhook (multi-record mode) | UUID handle used to fetch the record list from Supabase |
 
-Webhook action: `basketeditor` (default multi-record mode — no `&mode=singleitem`).
+Webhook action: `basket-editor` (default multi-record mode — no `&mode=singleitem`).
 
 - Choose visible columns from the **Field Definitions** panel (tabbed by data type)
 - Cells display formatted values and become editable on click — text, multi-line text (textarea), HTML, numeric, date, text list, classification, and option-list fields
@@ -132,7 +132,7 @@ Before using the Creative Template tools, create the following in Aprimo:
 
 | Action | Mode | Description |
 |--------|------|-------------|
-| `creativetemplatecreate` | Single-record (`&mode=singleitem`) | Open an existing canvas template record for editing |
+| `creative-template-create` | Single-record (`&mode=singleitem`) | Open an existing canvas template record for editing |
 
 #### Creative Template Fill (`/creative-template-fill`)
 
@@ -153,7 +153,7 @@ Opens a saved canvas template and lets users fill its editable fields, then save
 
 | Action | Mode | Description |
 |--------|------|-------------|
-| `creativetemplatefill` | Single-record (`&mode=singleitem`) | Open a canvas template record for fill — loads the layout from the record's JSON field |
+| `creative-template-fill` | Single-record (`&mode=singleitem`) | Open a canvas template record for fill — loads the layout from the record's JSON field |
 
 > Both canvas template actions use the same `NEXT_PUBLIC_CANVAS_TEMPLATE_*` environment variables as the create page.
 
@@ -264,8 +264,8 @@ A multi-format template builder. Load an Aprimo asset, define a content layout o
 
 | Action | Mode | Description |
 |--------|------|-------------|
-| `templatesbasket` | Multi-record (default) | Open Dynamic Content with selected DAM assets imported into a chosen project |
-| `templates` | Single-record (`&mode=singleitem`) | Open Dynamic Content with a single asset imported |
+| `templates-basket` | Multi-record (default) | Open Dynamic Content with selected DAM assets imported into a chosen project |
+| `templating` | Single-record (`&mode=singleitem`) | Open Dynamic Content with a single asset imported |
 
 When the page loads with `?requestId=` (or `?record=`) a project picker modal lets the user pick an existing project to import into, or create a new one. Assets are fetched via the SDK to resolve their CDN URLs.
 
@@ -294,7 +294,7 @@ Can be triggered via Aprimo page hook (single-record mode) or opened directly fr
 |-----------|--------|-------------|
 | `record` | Webhook (`&mode=singleitem`) | Aprimo record ID to read `_Script` and `DisplayTitle` fields from and attach audio to. Omit to create a new record. |
 
-Webhook action: `tts` with `&mode=singleitem` appended to the webhook URL.
+Webhook action: `text-to-speech` with `&mode=singleitem` appended to the webhook URL.
 
 **Pipeline — existing record**
 
@@ -330,7 +330,7 @@ Translate a video asset into another language using the ElevenLabs Dubbing API, 
 |-----------|--------|-------------|
 | `record` | Webhook (`&mode=singleitem`) | The Aprimo record ID of the source video |
 
-Webhook action: `translatevideo` with `&mode=singleitem` appended to the webhook URL.
+Webhook action: `translate-video` with `&mode=singleitem` appended to the webhook URL.
 
 **Pipeline**
 
@@ -361,7 +361,7 @@ Resize and reformat a video asset for social media platforms, then save it back 
 |-----------|--------|-------------|
 | `record` | Webhook (`&mode=singleitem`) | The Aprimo record ID whose master video file will be loaded |
 
-Webhook action: `videoresizer` with `&mode=singleitem` appended to the webhook URL.
+Webhook action: `video-resizer` with `&mode=singleitem` appended to the webhook URL.
 
 - Supports Instagram, YouTube, TikTok, Facebook, LinkedIn, and X with preset aspect ratios and resolutions
 - Adjustable crop mode (fill / fit), zoom, and rotation
@@ -450,8 +450,8 @@ Video Studio supports two webhook action modes:
 
 | Action | Mode | Description |
 |--------|------|-------------|
-| `videostudiobasket` | Multi-record (default) | Select one or more assets in Aprimo and open Video Studio with those assets pre-loaded in the sidebar, ready to arrange on the timeline. |
-| `videostudio` | Single-record (`&mode=singleitem`) | Open an existing Video Studio project record so you can edit it and save a new version. The project state stored in the JSON field is restored automatically. |
+| `video-studio-basket` | Multi-record (default) | Select one or more assets in Aprimo and open Video Studio with those assets pre-loaded in the sidebar, ready to arrange on the timeline. |
+| `video-studio` | Single-record (`&mode=singleitem`) | Open an existing Video Studio project record so you can edit it and save a new version. The project state stored in the JSON field is restored automatically. |
 
 > FFmpeg.wasm requires `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless` response headers on the `/video-studio` route. These are already configured in `next.config.mjs`.
 
@@ -525,39 +525,41 @@ NEXT_PUBLIC_APRIMO_CLIENT_SECRET=your-client-secret
 
 ```json
 {
-  "mybasket":                  "https://your-deployment.vercel.app/my-basket",
-  "basketeditor":              "https://your-deployment.vercel.app/basket-editor",
-  "myitem":                    "https://your-deployment.vercel.app/my-item",
-  "videoresizer":              "https://your-deployment.vercel.app/video-resizer",
-  "videostudiobasket":         "https://your-deployment.vercel.app/video-studio",
-  "videostudio":               "https://your-deployment.vercel.app/video-studio",
-  "templatesbasket":           "https://your-deployment.vercel.app/templates",
-  "templates":                 "https://your-deployment.vercel.app/templates",
-  "creativetemplatecreate":    "https://your-deployment.vercel.app/creative-template-create",
-  "creativetemplatefill":      "https://your-deployment.vercel.app/creative-template-fill",
-  "translatevideo":            "https://your-deployment.vercel.app/translate-video",
-  "tts":                       "https://your-deployment.vercel.app/text-to-speech",
-  "assetusage":                "https://your-deployment.vercel.app/asset-usage"
+  "my-basket":                   "https://www.aprimo-editor-tools.app/my-basket",
+  "basket-editor":               "https://www.aprimo-editor-tools.app/basket-editor",
+  "my-item":                     "https://www.aprimo-editor-tools.app/my-item",
+  "video-resizer":               "https://www.aprimo-editor-tools.app/video-resizer",
+  "video-studio-basket":         "https://www.aprimo-editor-tools.app/video-studio",
+  "video-studio":                "https://www.aprimo-editor-tools.app/video-studio",
+  "templates-basket":            "https://www.aprimo-editor-tools.app/templates",
+  "templating":                  "https://www.aprimo-editor-tools.app/templating",
+  "creative-template-create":    "https://www.aprimo-editor-tools.app/creative-template-create",
+  "creative-template-fill":      "https://www.aprimo-editor-tools.app/creative-template-fill",
+  "translate-video":             "https://www.aprimo-editor-tools.app/translate-video",
+  "text-to-speech":              "https://www.aprimo-editor-tools.app/text-to-speech",
+  "asset-usage":                 "https://www.aprimo-editor-tools.app/asset-usage"
 }
 ```
 
 The action name in Aprimo maps to a key in that file. The record or basket ID is forwarded as a query parameter.
 
+> **Backward compatibility** — the file also contains the original camelCase action names (e.g. `mybasket`, `basketeditor`, `videostudio`) pointing to the legacy Vercel deployment. Existing Aprimo page hook configurations using those names continue to work without changes.
+
 | Action | Mode | Tool |
 |--------|------|------|
-| `mybasket` | Multi-record (basket) | My Basket |
-| `basketeditor` | Multi-record (basket) | Basket Editor |
-| `myitem` | Single-record | My Item |
-| `videoresizer` | Single-record | Video Resizer |
-| `videostudiobasket` | Multi-record (basket) | Video Studio |
-| `videostudio` | Single-record | Video Studio — opens an existing project |
-| `templatesbasket` | Multi-record (basket) | Dynamic Content |
-| `templates` | Single-record | Dynamic Content |
-| `creativetemplatecreate` | Single-record | Creative Template — open existing template for editing |
-| `creativetemplatefill` | Single-record | Creative Template — fill a template and save as asset |
-| `translatevideo` | Single-record | Translate Video |
-| `tts` | Single-record | Text to Speech — generate audio from a record's `_Script` field |
-| `assetusage` | Single-record | Asset Usage — engagement analytics for a record |
+| `my-basket` | Multi-record (basket) | My Basket |
+| `basket-editor` | Multi-record (basket) | Basket Editor |
+| `my-item` | Single-record | My Item |
+| `video-resizer` | Single-record | Video Resizer |
+| `video-studio-basket` | Multi-record (basket) | Video Studio |
+| `video-studio` | Single-record | Video Studio — opens an existing project |
+| `templates-basket` | Multi-record (basket) | Dynamic Content |
+| `templating` | Single-record | Dynamic Content |
+| `creative-template-create` | Single-record | Creative Template — open existing template for editing |
+| `creative-template-fill` | Single-record | Creative Template — fill a template and save as asset |
+| `translate-video` | Single-record | Translate Video |
+| `text-to-speech` | Single-record | Text to Speech — generate audio from a record's `_Script` field |
+| `asset-usage` | Single-record | Asset Usage — engagement analytics for a record |
 
 ## Getting Started
 
@@ -614,7 +616,7 @@ To wire up a page hook action in Aprimo, create an action definition using the A
 }
 ```
 
-- **`name`** — matches the key in `actions.json` (e.g. `mybasket`, `myitem`)
+- **`name`** — matches the key in `actions.json` (e.g. `my-basket`, `my-item`)
 - **`url`** — the full URL to your deployed app's `/api/webhook` endpoint with the `action` query parameter
 - **`translationKey`** — the label shown in Aprimo menus
 
@@ -624,10 +626,10 @@ By default the webhook expects multiple record IDs, stores them in Supabase, and
 
 ```
 # Multi-record (default) — stores record list and returns a handle
-url: https://<your-site>.vercel.app/api/webhook?action=mybasket
+url: https://<your-site>/api/webhook?action=my-basket
 
 # Single-record — passes the record ID directly
-url: https://<your-site>.vercel.app/api/webhook?action=myitem&mode=singleitem
+url: https://<your-site>/api/webhook?action=my-item&mode=singleitem
 ```
 
 Once the action definition is created, add it to the appropriate Aprimo menu so users can trigger it from the basket or record view. Each menu entry references the action by name:

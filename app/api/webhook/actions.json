@@ -13,5 +13,19 @@
   "videostudio":                "https://aprimo-editor-tools.vercel.app/video-studio",
   "videostudiobasket":          "https://aprimo-editor-tools.vercel.app/video-studio",
 
+  "asset-usage":                 "https://www.aprimo-editor-tools.app/asset-usage",
+  "basket-editor":               "https://www.aprimo-editor-tools.app/basket-editor",
+  "creative-template-create":    "https://www.aprimo-editor-tools.app/creative-template-create",
+  "creative-template-fill":      "https://www.aprimo-editor-tools.app/creative-template-fill",
+  "my-basket":                   "https://www.aprimo-editor-tools.app/my-basket",
+  "my-item":                     "https://www.aprimo-editor-tools.app/my-item",
+  "templating":                  "https://www.aprimo-editor-tools.app/templating",
+  "templates-basket":            "https://www.aprimo-editor-tools.app/templates",
+  "translate-video":             "https://www.aprimo-editor-tools.app/translate-video",
+  "text-to-speech":              "https://www.aprimo-editor-tools.app/text-to-speech",
+  "video-resizer":               "https://www.aprimo-editor-tools.app/video-resizer",
+  "video-studio":                "https://www.aprimo-editor-tools.app/video-studio",
+  "video-studio-basket":         "https://www.aprimo-editor-tools.app/video-studio",
+
   "mybasketlocal":              "http://localhost:3000/my-basket"
 }
