@@ -279,17 +279,16 @@ function FillCanvasTemplatePage() {
         if (!imageUri) {
           const orderRes = await client.orders.create({
             type: "download",
-            targets: [{ recordId: record.id }],
-          } as any)
-          if (orderRes.ok) {
-            let order = orderRes.data as any
-            for (let i = 0; i < 10 && order?.status !== "Success" && order?.status !== "Failed"; i++) {
-              await new Promise((res) => setTimeout(res, 600))
-              const poll = await client.orders.getById(order.id)
-              if (poll.ok) order = poll.data
-            }
-            imageUri = (order?.deliveredFiles as string[] | undefined)?.[0]
+            targets: [{ recordId: record.id, targetTypes: ["Document"], assetType: "LatestVersionOfMasterFile" } as never],
+          })
+          if (!orderRes.ok) throw new Error(orderRes.error?.message ?? "Failed to create download order")
+          let order = orderRes.data as any
+          for (let i = 0; i < 60 && order?.status !== "Completed" && order?.status !== "Success" && order?.status !== "Failed"; i++) {
+            await new Promise((res) => setTimeout(res, 1000))
+            const poll = await client.orders.getById(order.id)
+            if (poll.ok) order = poll.data
           }
+          imageUri = (order?.deliveredFiles as string[] | undefined)?.[0]
         }
       }
 
