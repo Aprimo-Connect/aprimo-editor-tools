@@ -46,7 +46,13 @@ export default function RootLayout({
             {children}
           </AprimoProvider>
           <Toaster position="top-right" richColors offset="88px" />
-          {process.env.NODE_ENV === 'production' && <Analytics />}
+          {process.env.NODE_ENV === 'production' && (
+            <Analytics beforeSend={(event) => {
+              const path = new URL(event.url).pathname
+              if (path === '/' || path.includes('/oauth/callback')) return null
+              return event
+            }} />
+          )}
         </ThemeProvider>
       </body>
     </html>
