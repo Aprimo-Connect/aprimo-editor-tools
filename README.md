@@ -457,6 +457,30 @@ Video Studio supports two webhook action modes:
 
 ---
 
+### Team Capacity
+
+View and manage task assignments across projects using the Aprimo Productivity (PM) API. Opened directly from the home page — no page hook required.
+
+- Select one or more projects from the sidebar; tasks load automatically
+- Tasks are grouped by assignee — individual users, roles, teams, or unassigned — with estimated work shown per time period
+- Toggle between **Week** and **Day** views
+- Click any task row to open a detail modal
+
+**Task modal**
+
+- Shows task name, activity, dates, and estimated work
+- Displays the current assignee (task level)
+- For role tasks: lists all role members and shows who the role is assigned to at the project and activity levels (supports multiple assignees per role)
+- **Delegate** — for in-process tasks with an active assignee, search for a user and delegate the task via `POST /tasks/{taskId}/delegate`; guards against non-delegatable states (task not yet accepted, no active assignee, 409 conflict) with clear error messages
+- For role and team tasks the member list is read-only — delegation is not available until the task has been accepted by an assignee
+- **Open Project** — opens the project in Aprimo and closes the modal
+
+**Environment variables**
+
+None required beyond the standard Aprimo connection variables. All PM API calls are proxied through `POST /api/aprimo/productivity` using the [Aprimo JS SDK](https://github.com/Timw255/aprimo-js).
+
+---
+
 ### Package Designer
 
 Build and edit Aprimo package ingestion configurations (`.packageIngestionConfiguration`). Opens directly from the home page — no page hook required. Does not write back to Aprimo; the final XML is copied to the clipboard for pasting into the Aprimo system setting.
