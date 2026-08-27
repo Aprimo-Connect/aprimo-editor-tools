@@ -83,6 +83,7 @@ interface ClassificationFlatItem {
   depth: number       // tree depth (0 = top-level child of root)
   hasChildren: boolean
   parentId: string | null  // id of nearest visible ancestor (null for depth-0 nodes)
+  disabled: boolean   // true when identifier is empty — shown in tree but not selectable
 }
 
 function getEnglishLabel(labels: Array<{ languageId: string; value: string }> | undefined, fallback: string): string {
@@ -253,14 +254,14 @@ function DashboardContent() {
         // Combine classification + optional collection filter
         const ceFilters = [...classFilter, ...ceColFilter]
 
-        const [ceTotal, ceChart, ceTopV, ceTopD, ceTopI, ceTopP] = await Promise.all([
+        const [ceTotal, ceChart, ceTopV, ceTopD, ceTopP] = await Promise.all([
           queryAnalytics(env, authHeader, {
-            measures: ["ContentEngagement.viewsCount", "ContentEngagement.downloadsCount", "ContentEngagement.impressionsCount", "ContentEngagement.previewPlaybacksCount"],
+            measures: ["ContentEngagement.viewsCount", "ContentEngagement.downloadsCount", "ContentEngagement.previewPlaybacksCount"],
             filters: ceFilters,
             ...(ceDrFilter.length ? { timeDimensions: ceDrFilter } : {}),
           }),
           queryAnalytics(env, authHeader, {
-            measures: ["ContentEngagement.viewsCount", "ContentEngagement.downloadsCount", "ContentEngagement.impressionsCount", "ContentEngagement.previewPlaybacksCount"],
+            measures: ["ContentEngagement.viewsCount", "ContentEngagement.downloadsCount", "ContentEngagement.previewPlaybacksCount"],
             filters: ceFilters,
             ...ceDrTime(),
             order: { "ContentEngagement.date": "asc" },
@@ -268,7 +269,6 @@ function DashboardContent() {
           }),
           queryAnalytics(env, authHeader, { measures: ["ContentEngagement.viewsCount"], dimensions: ["ContentEngagement.recordId"], filters: ceFilters, ...(ceDrFilter.length ? { timeDimensions: ceDrFilter } : {}), order: { "ContentEngagement.viewsCount": "desc" }, limit: 20 }),
           queryAnalytics(env, authHeader, { measures: ["ContentEngagement.downloadsCount"], dimensions: ["ContentEngagement.recordId"], filters: ceFilters, ...(ceDrFilter.length ? { timeDimensions: ceDrFilter } : {}), order: { "ContentEngagement.downloadsCount": "desc" }, limit: 20 }),
-          queryAnalytics(env, authHeader, { measures: ["ContentEngagement.impressionsCount"], dimensions: ["ContentEngagement.recordId"], filters: ceFilters, ...(ceDrFilter.length ? { timeDimensions: ceDrFilter } : {}), order: { "ContentEngagement.impressionsCount": "desc" }, limit: 20 }),
           queryAnalytics(env, authHeader, { measures: ["ContentEngagement.previewPlaybacksCount"], dimensions: ["ContentEngagement.recordId"], filters: ceFilters, ...(ceDrFilter.length ? { timeDimensions: ceDrFilter } : {}), order: { "ContentEngagement.previewPlaybacksCount": "desc" }, limit: 20 }),
         ])
 
@@ -276,7 +276,7 @@ function DashboardContent() {
           activeUsers: 0,
           views:       parseCount(ceTotal[0]?.["ContentEngagement.viewsCount"]),
           downloads:   parseCount(ceTotal[0]?.["ContentEngagement.downloadsCount"]),
-          impressions: parseCount(ceTotal[0]?.["ContentEngagement.impressionsCount"]),
+          impressions: 0,
           plays:       parseCount(ceTotal[0]?.["ContentEngagement.previewPlaybacksCount"]),
         })
 
@@ -286,10 +286,9 @@ function DashboardContent() {
           if (!date) continue
           if (!dateMap.has(date)) dateMap.set(date, { date, views: 0, downloads: 0, impressions: 0, plays: 0 })
           const pt = dateMap.get(date)!
-          pt.views       = parseCount(row["ContentEngagement.viewsCount"])
-          pt.downloads   = parseCount(row["ContentEngagement.downloadsCount"])
-          pt.impressions = parseCount(row["ContentEngagement.impressionsCount"])
-          pt.plays       = parseCount(row["ContentEngagement.previewPlaybacksCount"])
+          pt.views     = parseCount(row["ContentEngagement.viewsCount"])
+          pt.downloads = parseCount(row["ContentEngagement.downloadsCount"])
+          pt.plays     = parseCount(row["ContentEngagement.previewPlaybacksCount"])
         }
         setChartData(Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date)))
 
@@ -298,19 +297,18 @@ function DashboardContent() {
 
         const tvd = ceRows(ceTopV, "ContentEngagement.viewsCount")
         const tdd = ceRows(ceTopD, "ContentEngagement.downloadsCount")
-        const tid = ceRows(ceTopI, "ContentEngagement.impressionsCount")
         const tpd = ceRows(ceTopP, "ContentEngagement.previewPlaybacksCount")
 
         setTopViewed(tvd)
         setTopDownloaded(tdd)
-        setTopImpressed(tid)
+        setTopImpressed([])
         setTopPlayed(tpd)
         setViewsByUser([])
         setDownloadsByUser([])
         setPlaysByUser([])
         setUtmData([])
 
-        resolvedRecordIds = Array.from(new Set([...tvd, ...tdd, ...tid, ...tpd].map(r => r.recordId)))
+        resolvedRecordIds = Array.from(new Set([...tvd, ...tdd, ...tpd].map(r => r.recordId)))
 
       } else {
         // ── Individual cubes path ─────────────────────────────────────────────
@@ -552,7 +550,9 @@ function DashboardContent() {
 
       // Normalize all IDs from the API so comparisons are case/format insensitive
       const idToIdentifier = new Map<string, string>(
-        allRaw.map((c: any) => [normalizeId(c.id as string), c.identifier as string])
+        allRaw
+          .filter((c: any) => c.identifier)
+          .map((c: any) => [normalizeId(c.id as string), c.identifier as string])
       )
       const nodes: ClassificationNode[] = allRaw.map((c: any) => ({
         id: normalizeId(c.id),
@@ -593,7 +593,6 @@ function DashboardContent() {
       // Compute hasChildren and parentId in a single pass over the flat list
       const parentStack: (string | null)[] = []
       const items: ClassificationFlatItem[] = flat
-        .filter(f => idToIdentifier.has(f.id))
         .map((f, i, arr) => {
           parentStack.length = f.depth + 1
           const parentId = f.depth > 0 ? (parentStack[f.depth - 1] ?? null) : null
@@ -601,11 +600,12 @@ function DashboardContent() {
           const hasChildren = i + 1 < arr.length && arr[i + 1].depth > f.depth
           return {
             id: f.id,
-            identifier: idToIdentifier.get(f.id)!,
+            identifier: idToIdentifier.get(f.id) ?? "",
             label: f.label,
             depth: f.depth,
             hasChildren,
             parentId,
+            disabled: !idToIdentifier.has(f.id),
           }
         })
       setClassifications(items)
@@ -903,8 +903,9 @@ function DashboardContent() {
                             <span className="h-6 w-6 flex-shrink-0" />
                           )}
                           <button
-                            onClick={() => selectClass(c.id, c.identifier)}
-                            className={`flex-1 flex items-center gap-2 px-1 py-1 rounded-sm text-sm hover:bg-muted transition-colors text-left min-w-0 ${selectedClassificationId === c.id ? "font-medium" : ""}`}
+                            onClick={c.disabled ? undefined : () => selectClass(c.id, c.identifier)}
+                            disabled={c.disabled}
+                            className={`flex-1 flex items-center gap-2 px-1 py-1 rounded-sm text-sm text-left min-w-0 ${c.disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-muted transition-colors"} ${selectedClassificationId === c.id ? "font-medium" : ""}`}
                           >
                             <Check className={`h-4 w-4 flex-shrink-0 ${selectedClassificationId === c.id ? "opacity-100" : "opacity-0"}`} />
                             <span className="truncate">{c.label}</span>
@@ -951,8 +952,8 @@ function DashboardContent() {
               <Tooltip />
               <Legend />
               <Line type="monotone" dataKey="views"        stroke="var(--chart-1)" strokeWidth={lineWidth("views")}       strokeOpacity={lineOpacity("views")}       dot={false} name="Views" />
-              <Line type="monotone" dataKey="downloads"    stroke="var(--chart-2)" strokeWidth={lineWidth("downloads")}   strokeOpacity={lineOpacity("downloads")}   dot={false} name="Downloads" />
-              <Line type="monotone" dataKey="impressions"  stroke="var(--chart-3)" strokeWidth={lineWidth("impressions")} strokeOpacity={lineOpacity("impressions")} dot={false} name="Impressions" />
+              {!selectedCollectionId && <Line type="monotone" dataKey="downloads"    stroke="var(--chart-2)" strokeWidth={lineWidth("downloads")}   strokeOpacity={lineOpacity("downloads")}   dot={false} name="Downloads" />}
+              {!selectedCollectionId && !selectedClassificationId && <Line type="monotone" dataKey="impressions"  stroke="var(--chart-3)" strokeWidth={lineWidth("impressions")} strokeOpacity={lineOpacity("impressions")} dot={false} name="Impressions" />}
               <Line type="monotone" dataKey="plays"        stroke="var(--chart-4)" strokeWidth={lineWidth("plays")}       strokeOpacity={lineOpacity("plays")}       dot={false} name="Plays" />
             </LineChart>
           </ResponsiveContainer>
@@ -962,9 +963,10 @@ function DashboardContent() {
       {/* KPI tiles — click to drill down, click again to collapse */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {kpiTiles.map(({ key, label, value, icon: Icon, iconColor, activeBorder, activeBg }) => {
-          // users tile grayed out when any filter is active; downloads/impressions grayed out only when collection filter is active (classification path uses ContentEngagement which supports them)
+          // users tile grayed out when any filter is active; impressions grayed out when classification filter is active (CE cube has no impressions measure); downloads/impressions grayed out only when collection filter is active
           const collectionUnsupported =
             (key === "users" && (!!selectedCollectionId || !!selectedClassificationId)) ||
+            (key === "impressions" && !!selectedClassificationId) ||
             (!!selectedCollectionId && !selectedClassificationId && (key === "downloads" || key === "impressions"))
           return (
             <button
