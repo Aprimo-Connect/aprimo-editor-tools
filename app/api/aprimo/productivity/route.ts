@@ -95,6 +95,22 @@ export async function POST(req: NextRequest) {
       if (id === undefined) return NextResponse.json({ error: "Missing id" }, { status: 400 })
       const res = await client.productivity.tasks.getById(id)
       result = res.data
+    } else if (call === "review-tasks.getById") {
+      if (id === undefined) return NextResponse.json({ error: "Missing id" }, { status: 400 })
+      const res = await fetch(`https://${environment}.aprimo.com/api/review-tasks/${id}`, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", API: "1" },
+      })
+      if (!res.ok) throw new Error(`PM API error ${res.status}: ${await res.text()}`)
+      result = await res.json()
+    } else if (call === "review-tasks.search") {
+      const qs = params ? `?${new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString()}` : ""
+      const res = await fetch(`https://${environment}.aprimo.com/api/review-tasks/search${qs}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", API: "1" },
+        body: JSON.stringify(request ?? {}),
+      })
+      if (!res.ok) throw new Error(`PM API error ${res.status}: ${await res.text()}`)
+      result = await res.json()
     } else if (call === "tasks.delegate") {
       if (id === undefined) return NextResponse.json({ error: "Missing id" }, { status: 400 })
       const res = await client.productivity.tasks.delegate(id, body as { taskAssigneeId: number; newUserId: number })

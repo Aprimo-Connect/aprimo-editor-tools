@@ -35,6 +35,7 @@ interface RawTask {
   autoClose?: number
   assignees?: { assigneeId?: number; userId?: number; roleId?: number }[]
   taskRoles?: RawTaskRole[]
+  isReviewTask?: boolean
 }
 
 interface EnrichedTask extends RawTask {
@@ -322,6 +323,24 @@ export default function TeamCapacityPage() {
             if (tasks.length >= total || items.length < limit) break
             offset += limit
           }
+          // Fetch review tasks for this project
+          const reviewTasks: RawTask[] = []
+          let rtOffset = 0
+          while (reviewTasks.length < 1000) {
+            const { data: rtData } = await productivityCall(environment, accessToken, "review-tasks.search", {
+              request: { equals: { fieldName: "projectId", fieldValue: projectId } },
+              params: { limit, offset: rtOffset },
+            })
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const rd = rtData as any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const rtItems: RawTask[] = (rd?._embedded?.ReviewTask ?? []).map((rt: any) => ({ ...rt, isReviewTask: true as const }))
+            reviewTasks.push(...rtItems)
+            const rtTotal: number = rd?._total ?? rtItems.length
+            if (reviewTasks.length >= rtTotal || rtItems.length < limit) break
+            rtOffset += limit
+          }
+          tasks.push(...reviewTasks)
           await resolveAssignees(environment, accessToken, tasks)
           return [projectId, tasks] as [number, RawTask[]]
         })
@@ -626,7 +645,8 @@ export default function TeamCapacityPage() {
   useEffect(() => {
     if (!selectedTask || !connection) { setModalTaskDetail(null); return }
     const { environment, accessToken } = connection
-    productivityCall(environment, accessToken, "tasks.getById", { id: selectedTask.taskId })
+    const detailCall = selectedTask.isReviewTask ? "review-tasks.getById" : "tasks.getById"
+    productivityCall(environment, accessToken, detailCall, { id: selectedTask.taskId })
       .then(({ data }) => setModalTaskDetail(data))
       .catch(() => setModalTaskDetail(null))
   }, [selectedTask, connection])
@@ -782,13 +802,17 @@ export default function TeamCapacityPage() {
     })
   }, [filteredActivities, activities.length])
 
-  // Auto-check newly loaded projects
+  // Sync checked projects with the current project list: drop removed, auto-check new ones
   useEffect(() => {
-    if (projects.length === 0) return
     const visible = projects.filter(p => p.projectStatus === undefined || enabledProjectStatuses.has(p.projectStatus))
+    const visibleIds = new Set(visible.map(p => p.projectId))
     setCheckedProjects(prev => {
       let changed = false
-      const next = new Set(prev)
+      const next = new Set<number>()
+      for (const id of prev) {
+        if (visibleIds.has(id)) next.add(id)
+        else changed = true
+      }
       for (const p of visible) {
         if (!next.has(p.projectId)) { next.add(p.projectId); changed = true }
       }
@@ -1486,6 +1510,11 @@ export default function TeamCapacityPage() {
                                                 <span className="text-muted-foreground font-normal"> ({projects.find(p => p.projectId === t.projectId)?.title ?? `Project ${t.projectId}`})</span>
                                               )}
                                             </span>
+                                            {t.isReviewTask && (
+                                              <Badge variant="outline" className="ml-1 text-[10px] py-0 px-1 font-normal text-blue-600 border-blue-300">
+                                                Review
+                                              </Badge>
+                                            )}
                                             {t.workFlowTaskStatus !== undefined && (
                                               <Badge variant="outline" className="ml-1 text-[10px] py-0 px-1 font-normal">
                                                 {statusNameMap.get(t.workFlowTaskStatus) ?? t.workFlowTaskStatus}
