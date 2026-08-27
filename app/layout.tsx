@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Roboto } from 'next/font/google'
+import { Suspense } from 'react'
 import { AppAnalytics } from '@/components/analytics'
 import { Toaster } from 'sonner'
 import { AprimoProvider } from '@/context/aprimo-context'
@@ -42,7 +43,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AprimoProvider>
             <AprimoConfigDialog />
-            <AprimoSettingsBar />
+            <Suspense><AprimoSettingsBar /></Suspense>
             {children}
           </AprimoProvider>
           <Toaster position="top-right" richColors offset="88px" />

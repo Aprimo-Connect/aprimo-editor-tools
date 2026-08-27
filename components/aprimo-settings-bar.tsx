@@ -4,6 +4,7 @@ import { Settings } from "lucide-react"
 import { useAprimo } from "@/context/aprimo-context"
 import { Button } from "@/components/ui/button"
 import { LanguagePicker } from "@/components/language-picker"
+import { useSearchParams } from "next/navigation"
 
 const ALL_FROM_ENV = !!(
   process.env.NEXT_PUBLIC_APRIMO_ENVIRONMENT &&
@@ -13,6 +14,9 @@ const ALL_FROM_ENV = !!(
 
 export function AprimoSettingsBar() {
   const { connection, isConnected } = useAprimo()
+  const searchParams = useSearchParams()
+
+  if (searchParams.get("embed") === "1") return null
 
   return (
     <div className="fixed top-3 right-4 z-50 flex items-center gap-2">
