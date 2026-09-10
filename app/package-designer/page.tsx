@@ -191,6 +191,14 @@ export default function PackageDesignerPage() {
     [zipPaths, selectedConfig]
   )
 
+  const primaryMatchCount = useMemo(() => {
+    if (!selectedConfig?.masterFileRegex) return 0
+    try {
+      const re = new RegExp(selectedConfig.masterFileRegex, "i")
+      return zipPaths.filter(p => re.test(p)).length
+    } catch { return 0 }
+  }, [zipPaths, selectedConfig])
+
   const zipSuggestions = useMemo(() => {
     const extsInZip = new Set<string>()
     for (const p of zipPaths) {
@@ -564,6 +572,11 @@ export default function PackageDesignerPage() {
                     ⚠ {conflictCount} overlap{conflictCount !== 1 ? "s" : ""}
                   </span>
                 )}
+                {primaryMatchCount > 1 && (
+                  <span className="text-xs text-destructive">
+                    ⚠ {primaryMatchCount} primary matches
+                  </span>
+                )}
                 {selectedConfig && (
                   <span className="text-xs text-muted-foreground ml-auto truncate max-w-32" title={selectedConfig.name}>
                     {selectedConfig.name}
@@ -712,7 +725,7 @@ export default function PackageDesignerPage() {
                   )}
                 </div>
               ) : (
-                <ScrollArea className="flex-1">
+                <ScrollArea className="flex-1 min-h-0">
                   <div className="p-4 space-y-2">
                     <p className="text-xs text-muted-foreground mb-3">
                       {packages.length} package{packages.length !== 1 ? "s" : ""}

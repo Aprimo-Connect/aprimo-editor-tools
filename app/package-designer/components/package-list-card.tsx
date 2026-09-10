@@ -55,9 +55,12 @@ export function PackageListCard({
               : <X className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
           )}
           <span className="font-medium text-sm truncate">{pkg.name}</span>
-          {!pkg.enabled && (
-            <Badge variant="secondary" className="text-xs shrink-0">disabled</Badge>
-          )}
+          <Badge
+            variant="secondary"
+            className={cn("text-xs shrink-0", pkg.enabled ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30" : "")}
+          >
+            {pkg.enabled ? "enabled" : "disabled"}
+          </Badge>
           {isMatch && (
             <Badge className="text-xs shrink-0 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 border">
               matches zip

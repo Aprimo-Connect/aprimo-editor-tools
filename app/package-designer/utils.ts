@@ -145,8 +145,7 @@ function generatePackageBlock(config: PackageConfig): string {
   const ind = (n: number) => "  ".repeat(n)
   const lines: string[] = []
 
-  const enabledAttr = config.enabled ? ` enabled="true"` : ""
-  lines.push(`${ind(1)}<package name="${esc(config.name)}"${enabledAttr}>`, ``)
+  lines.push(`${ind(1)}<package name="${esc(config.name)}" enabled="${config.enabled}">`, ``)
 
   const rules = config.identificationRules.filter(r => r.trim())
   if (rules.length > 0) {

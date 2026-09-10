@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
-import { FlaskConical, Package2, Plus, Trash2 } from "lucide-react"
+import { AlertCircle, FlaskConical, Package2, Plus, Trash2 } from "lucide-react"
 import type { AdditionalFileConfig, ClassificationConfig, FocusedInput, PackageConfig, RecordConfig } from "../types"
 import { KNOWN_PACKAGE_TYPES } from "../utils"
 import { IdentificationTestResults } from "./identification-test-results"
@@ -204,6 +204,19 @@ export function ConfigureForm({
                 placeholder="e.g. (.*?)\.(indd|indt)$"
                 className="font-mono text-sm"
               />
+              {config.masterFileRegex && zipPaths.length > 0 && (() => {
+                try {
+                  const re = new RegExp(config.masterFileRegex, "i")
+                  const count = zipPaths.filter(p => re.test(p)).length
+                  if (count > 1) return (
+                    <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/5 px-3 py-2">
+                      <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                      <p className="text-xs text-destructive">Matches {count} files — only one file can be primary.</p>
+                    </div>
+                  )
+                } catch {}
+                return null
+              })()}
             </div>
             <div className="space-y-1.5">
               <Label>Preview Regex <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
