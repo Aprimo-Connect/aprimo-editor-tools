@@ -528,7 +528,7 @@ Browse the full Aprimo classification hierarchy, select any combination of nodes
 - Checkboxes cascade — checking a parent automatically checks all its descendants
 - **Select All** / **Deselect All** buttons; root nodes show a total node count
 - Search filter to find classifications by name or hierarchy path (flattens the tree for search results)
-- **Include record count** toggle — when enabled, the export fetches the asset count for each selected classification node from the Aprimo search API (one request per node; may be slow for large selections)
+- **Include record count** toggle — when enabled, the export fetches the asset count for each selected classification node via the Aprimo search API (one request per node, up to 5 concurrent; progress shown during export). The first request probes for a supported search field (`Classification`, then `classificationid`) and reuses it for the rest. If neither field exists in the environment, a clear error is shown and the export proceeds without counts.
 - **Reload** button to refresh the classification tree from Aprimo without leaving the page
 
 **Export columns**
@@ -542,7 +542,6 @@ Browse the full Aprimo classification hierarchy, select any combination of nodes
 | Parent System Name | Internal Aprimo name of the parent node (empty for root nodes) |
 | Parent ID | GUID of the parent node (empty for root nodes) |
 | Hierarchy Path | Full display path from root to node (e.g. `Agency / Tier 1 / ABC Agency`) |
-| Depth | 0 for root nodes, increments by 1 per level |
 | Record Count | Number of assets tagged with this classification (only included when the toggle is enabled) |
 
 ---

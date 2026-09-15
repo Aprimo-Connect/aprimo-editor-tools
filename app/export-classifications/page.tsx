@@ -11,6 +11,65 @@ import ExcelJS from "exceljs"
 
 // ── Helpers ───────────────────────────────────────────────────────
 
+// Fetch record count for a list of classification IDs via search.records().
+// Probes the first ID with candidate field names, then reuses the working one.
+// Runs up to `concurrency` calls at a time to avoid 429s.
+// Returns a Map<id, count>. Throws if no candidate field works.
+async function fetchClassificationCounts(
+  ids: string[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  client: any,
+  onProgress?: (done: number, total: number) => void,
+  concurrency = 5,
+): Promise<Map<string, number>> {
+  const counts = new Map<string, number>()
+  let done = 0
+  // Field name candidates, tried in order on the first ID.
+  const CANDIDATES = ["Classification", "classificationid"]
+  let field: string | null = null
+
+  async function tryField(id: string, f: string): Promise<number | null> {
+    try {
+      const res = await client.search.records(
+        { searchExpression: { expression: `${f} = '${id}'` }, page: 1, pageSize: 1 } as never,
+      )
+      if (!res.ok) return null
+      const data = res.data as unknown as { totalCount?: number }
+      return data?.totalCount ?? null
+    } catch {
+      return null
+    }
+  }
+
+  async function fetchOne(id: string) {
+    if (!field) {
+      for (const candidate of CANDIDATES) {
+        const n = await tryField(id, candidate)
+        if (n !== null) { field = candidate; counts.set(id, n); break }
+      }
+      if (!field) {
+        throw new Error(
+          "Record counts are not available: no supported search field found. " +
+          `Tried: ${CANDIDATES.join(", ")}`,
+        )
+      }
+    } else {
+      counts.set(id, (await tryField(id, field)) ?? 0)
+    }
+    done++
+    onProgress?.(done, ids.length)
+  }
+
+  if (ids.length > 0) {
+    await fetchOne(ids[0])
+    for (let i = 1; i < ids.length; i += concurrency) {
+      await Promise.all(ids.slice(i, i + concurrency).map(fetchOne))
+    }
+  }
+
+  return counts
+}
+
 function toGuid(id: string): string {
   if (id.includes("-") || id.length !== 32) return id
   return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`
@@ -68,6 +127,7 @@ export default function ExportClassificationsPage() {
   const [includeRecordCount, setIncludeRecordCount] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState("")
+  const [countError, setCountError] = useState<string | null>(null)
 
   // ── children map for cascade and descendant lookup ────────────────
 
@@ -239,37 +299,19 @@ export default function ExportClassificationsPage() {
         .filter(n => checked.has(n.id))
         .sort((a, b) => (a.labelPath || a.name).localeCompare(b.labelPath || b.name))
 
-      // Compute depth for each node
-      const depthCache = new Map<string, number>()
-      function getDepth(id: string): number {
-        if (depthCache.has(id)) return depthCache.get(id)!
-        const node = nodeById.get(id)
-        if (!node?.parentId || !nodeById.has(node.parentId)) { depthCache.set(id, 0); return 0 }
-        const d = getDepth(node.parentId) + 1
-        depthCache.set(id, d)
-        return d
-      }
-
-      // Optional: fetch record counts in batches of 5
-      let counts: Map<string, number> | null = null
+      // Optionally fetch record counts for selected nodes via search endpoint
+      let countById = new Map<string, number>()
+      setCountError(null)
       if (includeRecordCount) {
-        counts = new Map()
-        const total = selectedNodes.length
-        for (let i = 0; i < total; i += 5) {
-          const batch = selectedNodes.slice(i, i + 5)
-          setExportProgress(`Counting records… ${Math.min(i + 5, total).toLocaleString()} / ${total.toLocaleString()}`)
-          await Promise.all(
-            batch.map(async node => {
-              try {
-                const res = await client.search.records(
-                  { searchExpression: { expression: `classificationid = '${node.id}'` }, page: 1, pageSize: 1 } as never,
-                )
-                counts!.set(node.id, (res as Record<string, unknown>)._total as number ?? 0)
-              } catch {
-                counts!.set(node.id, 0)
-              }
-            }),
+        try {
+          const ids = selectedNodes.map(n => n.id)
+          countById = await fetchClassificationCounts(
+            ids,
+            client,
+            (done, total) => setExportProgress(`Fetching record counts… ${done}/${total}`),
           )
+        } catch (e) {
+          setCountError(e instanceof Error ? e.message : String(e))
         }
       }
 
@@ -285,7 +327,6 @@ export default function ExportClassificationsPage() {
         { header: "Parent System Name", key: "parentSystemName", width: 35 },
         { header: "Parent ID", key: "parentId", width: 40 },
         { header: "Hierarchy Path", key: "path", width: 70 },
-        { header: "Depth", key: "depth", width: 8 },
         ...(includeRecordCount ? [{ header: "Record Count", key: "count", width: 14 }] : []),
       ]
       ws.getRow(1).font = { bold: true }
@@ -300,9 +341,8 @@ export default function ExportClassificationsPage() {
           parentSystemName: parent?.name ?? "",
           parentId: node.parentId ?? "",
           path: node.labelPath || node.name,
-          depth: getDepth(node.id),
+          ...(includeRecordCount ? { count: countById.get(node.id) ?? 0 } : {}),
         }
-        if (includeRecordCount) row.count = counts?.get(node.id) ?? 0
         ws.addRow(row)
       }
 
@@ -337,8 +377,9 @@ export default function ExportClassificationsPage() {
           <div>
             <h1 className="text-2xl font-bold">Export Classifications</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Select classification nodes to include, then download the full hierarchy as Excel.
-              Includes name, ID, parent ID, hierarchy path, and depth for every selected node.
+              Select classification nodes to include, then download as Excel.
+              Each row includes name, ID, parent, and hierarchy path.
+              Optionally include asset record counts, fetched via a single analytics API call.
             </p>
           </div>
           {!loading && flatItems.length > 0 && (
@@ -393,18 +434,6 @@ export default function ExportClassificationsPage() {
               </span>
             </div>
 
-            {/* Record count option */}
-            <label className="flex items-center gap-2 text-sm cursor-pointer select-none w-fit">
-              <Checkbox
-                checked={includeRecordCount}
-                onCheckedChange={v => setIncludeRecordCount(v === true)}
-              />
-              Include record count
-              <span className="text-xs text-muted-foreground">
-                (requires one API call per selected node — may be slow for large selections)
-              </span>
-            </label>
-
             {/* Tree */}
             <div className="border border-border rounded-lg overflow-hidden bg-card">
               <div className="overflow-y-auto max-h-[55vh]">
@@ -448,7 +477,19 @@ export default function ExportClassificationsPage() {
               </div>
             </div>
 
-            {/* Export */}
+            {/* Export options + button */}
+            <div className="flex items-center gap-4 flex-wrap">
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                <Checkbox
+                  checked={includeRecordCount}
+                  onCheckedChange={v => { setIncludeRecordCount(v === true); setCountError(null) }}
+                />
+                Include record count
+              </label>
+              {countError && (
+                <span className="text-xs text-destructive">Count error: {countError}</span>
+              )}
+            </div>
             <div className="flex items-center gap-3">
               <Button onClick={doExport} disabled={checkedCount === 0 || exporting}>
                 {exporting ? (
