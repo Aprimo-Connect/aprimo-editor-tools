@@ -462,6 +462,7 @@ Video Studio supports two webhook action modes:
 View and manage task assignments across projects using the Aprimo Productivity (PM) API. Opened directly from the home page — no page hook required.
 
 - Select one or more projects from the sidebar; tasks load automatically
+- Both regular tasks and **review tasks** are fetched — review tasks appear with a blue **Review** badge in the capacity grid
 - Tasks are grouped by assignee — individual users, roles, teams, or unassigned — with estimated work shown per time period
 - Toggle between **Week** and **Day** views
 - Click any task row to open a detail modal
@@ -515,6 +516,34 @@ Build and edit Aprimo package ingestion configurations (`.packageIngestionConfig
 | Primary File | Regex for the master file; optional preview regex |
 | Additional Files | One or more regexes with optional purpose (`review`, `spinset`, `3dpreview`) and usages |
 | Linked Records | One or more regexes with link type (`pubItem` / `recordLink`), duplicate-check mode, content type, and classifications |
+
+---
+
+### Export Classifications
+
+Browse the full Aprimo classification hierarchy, select any combination of nodes, and download the result as an Excel spreadsheet. Opened directly from the home page — no page hook required.
+
+- Loads the complete classification tree on connect via the Aprimo Classifications API
+- Tree view with expand / collapse per node
+- Checkboxes cascade — checking a parent automatically checks all its descendants
+- **Select All** / **Deselect All** buttons; root nodes show a total node count
+- Search filter to find classifications by name or hierarchy path (flattens the tree for search results)
+- **Include record count** toggle — when enabled, the export fetches the asset count for each selected classification node from the Aprimo search API (one request per node; may be slow for large selections)
+- **Reload** button to refresh the classification tree from Aprimo without leaving the page
+
+**Export columns**
+
+| Column | Description |
+|--------|-------------|
+| Name | Display name (English label, or system name as fallback) |
+| System Name | Internal Aprimo name for the classification node |
+| ID | Aprimo GUID for the classification |
+| Parent Name | Display name of the parent node (empty for root nodes) |
+| Parent System Name | Internal Aprimo name of the parent node (empty for root nodes) |
+| Parent ID | GUID of the parent node (empty for root nodes) |
+| Hierarchy Path | Full display path from root to node (e.g. `Agency / Tier 1 / ABC Agency`) |
+| Depth | 0 for root nodes, increments by 1 per level |
+| Record Count | Number of assets tagged with this classification (only included when the toggle is enabled) |
 
 ---
 

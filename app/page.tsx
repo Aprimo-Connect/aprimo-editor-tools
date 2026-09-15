@@ -3,7 +3,7 @@
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
-import { FileSpreadsheet, Upload, Clapperboard, House, LayoutTemplate, Copy, PenLine, Mic, BarChart2, Package2, Users } from "lucide-react"
+import { FileSpreadsheet, Upload, Clapperboard, House, LayoutTemplate, Copy, PenLine, Mic, BarChart2, Package2, Users, Tags } from "lucide-react"
 import Link from "next/link"
 import { useAprimo } from "@/context/aprimo-context"
 
@@ -161,6 +161,17 @@ export default function Home() {
                   </div>
                   <p className="text-sm text-muted-foreground">
                     View non-closed Aprimo PM tasks by week and assignee in a capacity grid.
+                  </p>
+                </div>
+              </Link>
+              <Link href="/export-classifications">
+                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Tags className="h-5 w-5 text-primary" />
+                    <h2 className="text-lg font-semibold">Export Classifications</h2>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Browse the full classification hierarchy, select nodes, and export to Excel — including name, ID, path, and optional record counts.
                   </p>
                 </div>
               </Link>
