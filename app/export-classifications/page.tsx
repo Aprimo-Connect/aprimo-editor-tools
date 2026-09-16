@@ -128,6 +128,8 @@ export default function ExportClassificationsPage() {
   const [exporting, setExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState("")
   const [countError, setCountError] = useState<string | null>(null)
+  const [languages, setLanguages] = useState<{ id: string; name: string }[]>([])
+  const [selectedLanguageIds, setSelectedLanguageIds] = useState<Set<string>>(new Set())
 
   // ── children map for cascade and descendant lookup ────────────────
 
@@ -205,11 +207,30 @@ export default function ExportClassificationsPage() {
     setChecked(new Set())
     setExpanded(new Set())
     try {
-      const allRaw: unknown[] = []
-      for await (const result of client.classifications.getPaged(undefined, undefined, "*")) {
-        if (!result.ok) break
-        allRaw.push(...((result.data as { items?: unknown[] })?.items ?? []))
-      }
+      const [classificationsResult] = await Promise.allSettled([
+        (async () => {
+          const allRaw: unknown[] = []
+          for await (const result of client.classifications.getPaged(undefined, undefined, "*")) {
+            if (!result.ok) break
+            allRaw.push(...((result.data as { items?: unknown[] })?.items ?? []))
+          }
+          return allRaw
+        })(),
+        (async () => {
+          const all: { id: string; name: string }[] = []
+          for await (const result of client.languages.getPaged()) {
+            if (!result.ok) break
+            const items = (result.data?.items ?? []) as unknown as { id: string; name: string; isEnabledForFields: boolean }[]
+            all.push(...items.filter(l => l.isEnabledForFields).map(l => ({ ...l, id: normalizeId(l.id) })))
+          }
+          setLanguages(all)
+          setSelectedLanguageIds(new Set())
+        })(),
+      ])
+
+      if (classificationsResult.status === "rejected") throw classificationsResult.reason
+      const allRaw = classificationsResult.value
+
       const nodes: ClassNode[] = (allRaw as Record<string, unknown>[]).map(c => ({
         id: normalizeId(String(c.id ?? "")),
         name: String(c.name ?? ""),
@@ -287,6 +308,14 @@ export default function ExportClassificationsPage() {
   function selectAll() { setChecked(new Set(flatItems.map(f => f.id))) }
   function deselectAll() { setChecked(new Set()) }
 
+  function toggleLanguage(id: string) {
+    setSelectedLanguageIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
   // ── Export ────────────────────────────────────────────────────────
 
   async function doExport() {
@@ -317,30 +346,58 @@ export default function ExportClassificationsPage() {
 
       setExportProgress("Building spreadsheet…")
 
+      const selectedLangs = languages.filter(l => selectedLanguageIds.has(l.id))
+      const useLangColumns = selectedLangs.length > 0
+
+      function labelForLang(labels: ClassNode["labels"], langId: string, fallback: string): string {
+        return labels?.find(l => normalizeId(l.languageId) === langId)?.value ?? fallback
+      }
+
+      function buildPath(node: ClassNode): string {
+        const parts: string[] = []
+        let current: ClassNode | undefined = node
+        while (current) {
+          parts.unshift(current.name)
+          current = current.parentId ? nodeById.get(current.parentId) : undefined
+        }
+        return parts.join(" > ")
+      }
+
       const workbook = new ExcelJS.Workbook()
       const ws = workbook.addWorksheet("Classifications")
       ws.columns = [
-        { header: "Name", key: "name", width: 35 },
-        { header: "System Name", key: "systemName", width: 35 },
-        { header: "ID", key: "id", width: 40 },
-        { header: "Parent Name", key: "parentName", width: 35 },
-        { header: "Parent System Name", key: "parentSystemName", width: 35 },
-        { header: "Parent ID", key: "parentId", width: 40 },
         { header: "Hierarchy Path", key: "path", width: 70 },
+        { header: "ID", key: "id", width: 40 },
+        { header: "System Name", key: "systemName", width: 35 },
+        ...(useLangColumns
+          ? selectedLangs.map(lang => ({ header: `Name (${lang.name})`, key: `name_${lang.id}`, width: 35 }))
+          : [{ header: "Name", key: "name", width: 35 }]),
+        { header: "Parent ID", key: "parentId", width: 40 },
+        { header: "Parent System Name", key: "parentSystemName", width: 35 },
+        ...(useLangColumns
+          ? selectedLangs.map(lang => ({ header: `Parent Name (${lang.name})`, key: `parentName_${lang.id}`, width: 35 }))
+          : [{ header: "Parent Name", key: "parentName", width: 35 }]),
         ...(includeRecordCount ? [{ header: "Record Count", key: "count", width: 14 }] : []),
       ]
       ws.getRow(1).font = { bold: true }
 
       for (const node of selectedNodes) {
         const parent = node.parentId ? nodeById.get(node.parentId) : undefined
+        const nameEntries = useLangColumns
+          ? Object.fromEntries(selectedLangs.map(lang => [`name_${lang.id}`, labelForLang(node.labels, lang.id, node.name)]))
+          : { name: getDisplayLabel(node.labels, node.name) }
+        const parentNameEntries = useLangColumns
+          ? Object.fromEntries(selectedLangs.map(lang => [`parentName_${lang.id}`, parent ? labelForLang(parent.labels, lang.id, parent.name) : ""]))
+          : { parentName: parent ? getDisplayLabel(parent.labels, parent.name) : "" }
+        const pathEntries = { path: buildPath(node) }
         const row: Record<string, unknown> = {
-          name: getDisplayLabel(node.labels, node.name),
+          ...nameEntries,
           systemName: node.name,
           id: node.id,
-          parentName: parent ? getDisplayLabel(parent.labels, parent.name) : "",
+          ...parentNameEntries,
           parentSystemName: parent?.name ?? "",
           parentId: node.parentId ?? "",
-          path: node.labelPath || node.name,
+          ...pathEntries,
           ...(includeRecordCount ? { count: countById.get(node.id) ?? 0 } : {}),
         }
         ws.addRow(row)
@@ -476,6 +533,46 @@ export default function ExportClassificationsPage() {
                 })}
               </div>
             </div>
+
+            {/* Language pills */}
+            {languages.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Export labels for:</span>
+                  <button
+                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                    onClick={() => setSelectedLanguageIds(new Set(languages.map(l => l.id)))}
+                  >
+                    All
+                  </button>
+                  <span className="text-xs text-muted-foreground">/</span>
+                  <button
+                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                    onClick={() => setSelectedLanguageIds(new Set())}
+                  >
+                    None
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {languages.map(lang => {
+                    const selected = selectedLanguageIds.has(lang.id)
+                    return (
+                      <button
+                        key={lang.id}
+                        onClick={() => toggleLanguage(lang.id)}
+                        className={
+                          selected
+                            ? "text-xs px-2.5 py-1 rounded-full border bg-primary text-primary-foreground border-primary transition-colors"
+                            : "text-xs px-2.5 py-1 rounded-full border bg-background text-muted-foreground border-border hover:border-foreground/40 transition-colors"
+                        }
+                      >
+                        {lang.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Export options + button */}
             <div className="flex items-center gap-4 flex-wrap">
