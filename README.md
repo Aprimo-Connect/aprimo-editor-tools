@@ -519,6 +519,25 @@ Build and edit Aprimo package ingestion configurations (`.packageIngestionConfig
 
 ---
 
+### Data Model
+
+Visualise how field definitions are connected to the rest of your Aprimo configuration as an interactive graph. Opened directly from the home page — no page hook required.
+
+- Loads all field definitions, field groups, content types, and classifications on connect
+- **Field picker** — search and filter the full list of field definitions on the left; click any field to focus the graph on it
+- **Global fields** are badged `GLOBAL` in the picker list
+- **Interactive graph** — centred on the selected field definition, with four relationship directions:
+  - **Above** — classifications the field belongs to (via field groups or directly)
+  - **Right** — content types the field belongs to (via field groups or directly)
+  - **Left** — other field definitions that reference this field in their `defaultValue` or `validation` expressions (using Aprimo's `fieldName="..."` / `fieldId="..."` expression syntax)
+  - **Below** — Aprimo rules whose conditions or actions reference this field
+- **Field group** nodes sit between the selected field and its containers; each field group shows its member count
+- Direct field-to-container assignments (bypassing a field group) are shown with dashed edges
+- **Click any node** to open a detail panel showing the node's ID, name, and related items
+- **Rules loading** — rule conditions and actions are fetched on first field selection and cached for the session; a spinner appears in the summary bar while loading. If the rules API is unavailable the summary shows "rules unavailable" with the error on hover
+- **Summary bar** — shows field group count, content type count, classification count, direct assignment count, expression reference count, and rule usage count for the selected field
+- **Reload** button refreshes all data and clears the rules cache
+
 ### Export Classifications
 
 Browse the full Aprimo classification hierarchy, select any combination of nodes, and download the result as an Excel spreadsheet. Opened directly from the home page — no page hook required.

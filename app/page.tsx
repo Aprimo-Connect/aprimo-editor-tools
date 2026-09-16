@@ -3,7 +3,7 @@
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
-import { FileSpreadsheet, Upload, Clapperboard, House, LayoutTemplate, Copy, PenLine, Mic, BarChart2, Package2, Users, Tags } from "lucide-react"
+import { FileSpreadsheet, Upload, Clapperboard, LayoutTemplate, Copy, PenLine, Mic, BarChart2, Package2, Users, Tags, GitBranch } from "lucide-react"
 import Link from "next/link"
 import { useAprimo } from "@/context/aprimo-context"
 
@@ -42,139 +42,166 @@ export default function Home() {
             </div>
           )}
           {isConnected && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <a href={`https://${connection?.environment}.dam.aprimo.com/dam`}>
-                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3 mb-2">
-                    <House className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Aprimo Home</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Go to the Spaces page for your Aprimo environment.
-                  </p>
+            <div className="space-y-8 text-left">
+              {/* Asset Power Tools */}
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Asset Power Tools</h2>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Link href="/bulk-upload">
+                    <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Upload className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">Bulk Upload</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Upload files into Aprimo with shared or per-asset field values.
+                      </p>
+                    </div>
+                  </Link>
+                  <Link href="/excel-import">
+                    <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3 mb-2">
+                        <FileSpreadsheet className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">Excel Import</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Import records into Aprimo from an Excel spreadsheet.
+                      </p>
+                    </div>
+                  </Link>
                 </div>
-              </a>
-              <Link href="/video-studio">
-                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Clapperboard className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Video Studio</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Select assets from Aprimo and generate a video.
-                  </p>
+              </div>
+
+              {/* Templating & Transformation */}
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Templating & Transformation</h2>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Link href="/video-studio">
+                    <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Clapperboard className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">Video Studio</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Select assets from Aprimo and generate a video.
+                      </p>
+                    </div>
+                  </Link>
+                  <Link href="/templates">
+                    <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3 mb-2">
+                        <LayoutTemplate className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">Dynamic Content</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Build multi-format banners from a single asset and publish renditions back to the DAM.
+                      </p>
+                    </div>
+                  </Link>
+                  <Link href="/creative-template-create">
+                    <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3 mb-2">
+                        <PenLine className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">Create Creative Template</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Build and save reusable canvas templates for generating branded assets.
+                      </p>
+                    </div>
+                  </Link>
+                  <Link href="/text-to-speech">
+                    <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Mic className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">Text to Speech</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Convert a script to AI-generated audio and save it back to the DAM for review.
+                      </p>
+                    </div>
+                  </Link>
                 </div>
-              </Link>
-              <Link href="/templates">
-                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3 mb-2">
-                    <LayoutTemplate className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Dynamic Content</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Build multi-format banners from a single asset and publish renditions back to the DAM.
-                  </p>
+              </div>
+
+              {/* Analytics & Productivity */}
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Analytics & Productivity</h2>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Link href="/dam-usage-dashboard">
+                    <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3 mb-2">
+                        <BarChart2 className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">DAM Usage Dashboard</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        High-level analytics across your DAM — views, downloads, impressions, plays, and active users with drill-down.
+                      </p>
+                    </div>
+                  </Link>
+                  <Link href="/team-capacity">
+                    <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Users className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">Team Capacity</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        View non-closed Aprimo PM tasks by week and assignee in a capacity grid.
+                      </p>
+                    </div>
+                  </Link>
                 </div>
-              </Link>
-              <Link href="/bulk-upload">
-                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Upload className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Bulk Upload</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Upload files into Aprimo with shared or per-asset field values.
-                  </p>
+              </div>
+
+              {/* Administrative Tools */}
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Administrative Tools</h2>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Link href="/package-designer">
+                    <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Package2 className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">Package Designer</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Drop a zip file to inspect its structure and build an Aprimo package ingestion configuration.
+                      </p>
+                    </div>
+                  </Link>
+                  <Link href="/export-classifications">
+                    <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Tags className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">Export Classifications</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Browse the full classification hierarchy, select nodes, and export to Excel — including name, ID, path, and optional record counts.
+                      </p>
+                    </div>
+                  </Link>
+                  <Link href="/data-model">
+                    <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3 mb-2">
+                        <GitBranch className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">Data Model Explorer</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Visualize field definitions, field groups, and their assignments to content types and classifications as an interactive graph.
+                      </p>
+                    </div>
+                  </Link>
+                  <Link href="/duplicates">
+                    <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Copy className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">Duplicate Assets</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Find duplicate assets by matching file checksum and filename.
+                      </p>
+                    </div>
+                  </Link>
                 </div>
-              </Link>
-              <Link href="/excel-import">
-                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3 mb-2">
-                    <FileSpreadsheet className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Excel Import</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Import records into Aprimo from an Excel spreadsheet.
-                  </p>
-                </div>
-              </Link>
-              <Link href="/duplicates">
-                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Copy className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Duplicate Assets</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Find duplicate assets by matching file checksum and filename.
-                  </p>
-                </div>
-              </Link>
-              <Link href="/creative-template-create">
-                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3 mb-2">
-                    <PenLine className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Create Creative Template</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Build and save reusable canvas templates for generating branded assets.
-                  </p>
-                </div>
-              </Link>
-              <Link href="/text-to-speech">
-                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Mic className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Text to Speech</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Convert a script to AI-generated audio and save it back to the DAM for review.
-                  </p>
-                </div>
-              </Link>
-              <Link href="/dam-usage-dashboard">
-                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3 mb-2">
-                    <BarChart2 className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">DAM Usage Dashboard</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    High-level analytics across your DAM — views, downloads, impressions, plays, and active users with drill-down.
-                  </p>
-                </div>
-              </Link>
-              <Link href="/package-designer">
-                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Package2 className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Package Designer</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Drop a zip file to inspect its structure and build an Aprimo package ingestion configuration.
-                  </p>
-                </div>
-              </Link>
-<Link href="/team-capacity">
-                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Team Capacity</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    View non-closed Aprimo PM tasks by week and assignee in a capacity grid.
-                  </p>
-                </div>
-              </Link>
-              <Link href="/export-classifications">
-                <div className="border border-border rounded-lg p-6 text-left bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Tags className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Export Classifications</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Browse the full classification hierarchy, select nodes, and export to Excel — including name, ID, path, and optional record counts.
-                  </p>
-                </div>
-              </Link>
+              </div>
             </div>
           )}
         </div>
