@@ -187,13 +187,35 @@ function buildDays(startDate: Date, endDate: Date): DayBucket[] {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 async function productivityCall(environment: string, token: string, call: string, extra: Record<string, unknown> = {}) {
-  const res = await fetch("/api/aprimo/productivity", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ environment, token, call, ...extra }),
-  })
-  if (!res.ok) throw new Error(`API route error ${res.status}`)
-  return res.json() as Promise<{ data: unknown }>
+  let delay = 2000
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await fetch("/api/aprimo/productivity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ environment, token, call, ...extra }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => null)
+      const msg: string = body?.error ?? `API route error ${res.status}`
+      if (msg.includes("429") && attempt < 3) {
+        await new Promise(r => setTimeout(r, delay))
+        delay *= 2
+        continue
+      }
+      throw new Error(msg)
+    }
+    return res.json() as Promise<{ data: unknown }>
+  }
+  throw new Error("Rate limit exceeded — please wait a moment and try again")
+}
+
+async function runBatched<T, R>(items: T[], batchSize: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = []
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize)
+    results.push(...await Promise.all(batch.map(fn)))
+  }
+  return results
 }
 
 export default function TeamCapacityPage() {
@@ -256,7 +278,7 @@ export default function TeamCapacityPage() {
   const [userSearchLoading, setUserSearchLoading] = useState(false)
   const [userSearchError, setUserSearchError] = useState<string | null>(null)
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [viewMode, setViewMode] = useState<"week" | "day">("week")
+  const [viewMode, setViewMode] = useState<"week" | "day" | "timeline">("week")
 
   useEffect(() => {
     if (!isConnected) router.replace("/")
@@ -274,28 +296,26 @@ export default function TeamCapacityPage() {
     const uniqueNew = [...new Set(allIds)].filter(id => !fetchedUserIds.current.has(id))
     if (uniqueNew.length === 0) return
     uniqueNew.forEach(id => fetchedUserIds.current.add(id))
-    await Promise.all(
-      uniqueNew.map(async (userId) => {
-        try {
-          const { data } = await productivityCall(environment, accessToken, "users.getById", { id: userId })
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const u = data as any
-          if (u) {
-            const name = [u.firstName, u.lastName].filter(Boolean).join(" ").trim() || u.email || String(userId)
-            setUserNameMap(prev => new Map(prev).set(userId, name))
-            return
-          }
-          // Not a user — try groups
-          const { data: gData } = await productivityCall(environment, accessToken, "groups.getById", { id: userId })
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const g = gData as any
-          const name = g?.name || `Group ${userId}`
-          setGroupNameMap(prev => new Map(prev).set(userId, name))
-        } catch {
-          setUserNameMap(prev => new Map(prev).set(userId, `User ${userId}`))
+    await runBatched(uniqueNew, 5, async (userId) => {
+      try {
+        const { data } = await productivityCall(environment, accessToken, "users.getById", { id: userId })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const u = data as any
+        if (u) {
+          const name = [u.firstName, u.lastName].filter(Boolean).join(" ").trim() || u.email || String(userId)
+          setUserNameMap(prev => new Map(prev).set(userId, name))
+          return
         }
-      })
-    )
+        // Not a user — try groups
+        const { data: gData } = await productivityCall(environment, accessToken, "groups.getById", { id: userId })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const g = gData as any
+        const name = g?.name || `Group ${userId}`
+        setGroupNameMap(prev => new Map(prev).set(userId, name))
+      } catch {
+        setUserNameMap(prev => new Map(prev).set(userId, `User ${userId}`))
+      }
+    })
   }, [])
 
   const fetchTasksForProjects = useCallback(async (projectIds: number[]) => {
@@ -305,8 +325,7 @@ export default function TeamCapacityPage() {
     setLoadingTasks(true)
     setTasksError(null)
     try {
-      const entries = await Promise.all(
-        projectIds.map(async (projectId) => {
+      const entries = await runBatched(projectIds, 3, async (projectId) => {
           const tasks: RawTask[] = []
           const limit = 200
           let offset = 0
@@ -343,8 +362,7 @@ export default function TeamCapacityPage() {
           tasks.push(...reviewTasks)
           await resolveAssignees(environment, accessToken, tasks)
           return [projectId, tasks] as [number, RawTask[]]
-        })
-      )
+      })
       setTasksByProject(new Map(entries))
     } catch (err) {
       setTasksError(err instanceof Error ? err.message : "Failed to load tasks")
@@ -439,10 +457,12 @@ export default function TeamCapacityPage() {
     try {
       const { data } = await productivityCall(environment, accessToken, "lookupLists.getById", { id: 2981 })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const items: { key: number; value: string }[] = (data as any)?.items ?? []
-      setUserTokenNameMap(new Map(items.map(i => [i.key, decodeHtml(i.value)])))
-    } catch {
-      // user tokens are optional
+      const d = data as any
+      const items: { key: number | string; value: string }[] =
+        d?.items ?? d?._embedded?.item ?? d?._embedded?.items ?? []
+      setUserTokenNameMap(new Map(items.map(i => [Number(i.key), decodeHtml(i.value)])))
+    } catch (err) {
+      console.warn("Failed to load user token names (lookup 2981):", err)
     }
 
     await fetchActivities()
@@ -1007,6 +1027,12 @@ export default function TeamCapacityPage() {
               >
                 Day
               </button>
+              <button
+                onClick={() => setViewMode("timeline")}
+                className={`px-3 py-1.5 transition-colors border-l border-border ${viewMode === "timeline" ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted/50"}`}
+              >
+                Timeline
+              </button>
             </div>
             <Button variant="outline" size="sm" onClick={() => fetchTasksForProjects([...checkedProjects])} disabled={isAnyLoading}>
               {isAnyLoading
@@ -1355,7 +1381,196 @@ export default function TeamCapacityPage() {
 
 
         {/* Grid */}
-        {!error && (
+        {!error && (viewMode === "timeline" ? (() => {
+          const ROW_H = 28
+          const ASSIGNEE_COL_W = 300
+          const DAY_MS = 86400000
+          const rsMs = parseLocalDate(rangeStart).getTime()
+          const reMs = parseLocalDate(rangeEnd).getTime()
+          const totalDays = Math.round((reMs - rsMs) / DAY_MS) + 1
+
+          const tlDays: Array<{ key: string; date: Date; isWeekend: boolean }> = []
+          const tlCursor = new Date(parseLocalDate(rangeStart))
+          for (let i = 0; i < totalDays; i++) {
+            const k = toDateInput(tlCursor)
+            const wd = tlCursor.getDay()
+            tlDays.push({ key: k, date: new Date(tlCursor), isWeekend: wd === 0 || wd === 6 })
+            tlCursor.setDate(tlCursor.getDate() + 1)
+          }
+
+          const mGroups: Array<{ label: string; count: number }> = []
+          for (const { date } of tlDays) {
+            const lbl = date.toLocaleDateString("en-US", { month: "short", year: "numeric" })
+            const last = mGroups[mGroups.length - 1]
+            if (last && last.label === lbl) last.count++
+            else mGroups.push({ label: lbl, count: 1 })
+          }
+
+          const todayIdx = tlDays.findIndex(d => d.key === currentDayKey)
+
+          // Handles both "YYYY-MM-DD" and full ISO strings from the API
+          const pd = (s: string) => { const [y, m, d] = s.slice(0, 10).split("-").map(Number); return new Date(y, m - 1, d) }
+
+          function getBarPos(task: EnrichedTask) {
+            const begin = task.beginDate ? pd(task.beginDate) : null
+            const end = task.endDate ? pd(task.endDate) : null
+            const bStart = begin ?? end
+            const bEnd = end ?? begin
+            if (!bStart || !bEnd) return null
+            const cs = Math.max(bStart.getTime(), rsMs)
+            const ce = Math.min(bEnd.getTime(), reMs)
+            if (cs > ce) return null
+            const leftDays = Math.round((cs - rsMs) / DAY_MS)
+            const widthDays = Math.max(Math.round((ce - cs) / DAY_MS) + 1, 1)
+            return {
+              left: `${(leftDays / totalDays) * 100}%`,
+              width: `${(widthDays / totalDays) * 100}%`,
+            }
+          }
+
+          const wkGroups: Array<{ label: string; count: number; startDate: Date; endDate: Date }> = []
+          for (const { date } of tlDays) {
+            const wk = getISOWeekKey(date)
+            const last = wkGroups[wkGroups.length - 1]
+            if (last && last.label === wk) { last.count++; last.endDate = date }
+            else wkGroups.push({ label: wk, count: 1, startDate: date, endDate: date })
+          }
+          const mondayKeys = new Set(tlDays.filter(d => d.date.getDay() === 1).map(d => d.key))
+
+          const tlVisibleRows = assigneeRows.filter(({ name }) => checkedAssignees.size === 0 || checkedAssignees.has(name))
+
+          return (
+            <div className="flex-1 overflow-auto">
+              <div className="w-full">
+                {/* Header */}
+                <div className="sticky top-0 z-20 bg-muted/50 backdrop-blur-sm border border-border">
+                  {/* Month row */}
+                  <div className="flex border-b border-border">
+                    <div style={{ width: ASSIGNEE_COL_W, minWidth: ASSIGNEE_COL_W }} className="sticky left-0 z-10 bg-muted/50 shrink-0" />
+                    {mGroups.map((g, i) => (
+                      <div key={i} style={{ flex: g.count, minWidth: g.count * 30 }} className="border-r border-border px-2 py-1 text-xs font-semibold text-muted-foreground overflow-hidden whitespace-nowrap">
+                        {g.label}
+                      </div>
+                    ))}
+                  </div>
+                  {/* Week row */}
+                  <div className="flex border-b border-border">
+                    <div style={{ width: ASSIGNEE_COL_W, minWidth: ASSIGNEE_COL_W }} className="sticky left-0 z-10 bg-muted/50 shrink-0" />
+                    {wkGroups.map((g, i) => {
+                      const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                      return (
+                        <div key={i} style={{ flex: g.count, minWidth: g.count * 30 }} className="border-r border-border px-2 py-1 text-xs text-muted-foreground overflow-hidden whitespace-nowrap text-center">
+                          {`${fmt(g.startDate)} – ${fmt(g.endDate)}`}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {/* Day row */}
+                  <div className="flex">
+                    <div style={{ width: ASSIGNEE_COL_W, minWidth: ASSIGNEE_COL_W }} className="sticky left-0 z-10 bg-muted/50 border-r border-border px-3 py-2.5 font-semibold shrink-0">
+                      Assignee
+                    </div>
+                    {tlDays.map(({ key, date, isWeekend }) => (
+                      <div key={key} style={{ flex: 1, minWidth: 30 }} className={`border-r border-border text-center text-xs py-1 select-none leading-tight overflow-hidden ${mondayKeys.has(key) ? "border-l-2" : ""} ${isWeekend ? "bg-muted/60 text-muted-foreground/60" : ""} ${key === currentDayKey ? "bg-primary/10 text-primary font-bold" : "font-medium"}`}>
+                        <div>{date.toLocaleDateString("en-US", { weekday: "short" })}</div>
+                        <div>{date.getDate()}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Rows */}
+                {tlVisibleRows.length === 0 ? (
+                  <div className="text-center py-16 text-muted-foreground text-sm">No tasks found</div>
+                ) : tlVisibleRows.flatMap(({ name: assignee, type: assigneeType }, idx) => {
+                  const rowTasks = enriched
+                    .filter(t => t.assigneeName === assignee && (t.beginDate || t.endDate))
+                    .sort((a, b) => {
+                      const aMs = a.beginDate ? pd(a.beginDate).getTime() : a.endDate ? pd(a.endDate).getTime() : 0
+                      const bMs = b.beginDate ? pd(b.beginDate).getTime() : b.endDate ? pd(b.endDate).getTime() : 0
+                      return aMs - bMs
+                    })
+                  const lanes: EnrichedTask[][] = []
+                  for (const task of rowTasks) {
+                    const sMs = task.beginDate ? pd(task.beginDate).getTime() : task.endDate ? pd(task.endDate).getTime() : 0
+                    let placed = false
+                    for (const lane of lanes) {
+                      const last = lane[lane.length - 1]
+                      const lastMs = last.endDate ? pd(last.endDate).getTime() : last.beginDate ? pd(last.beginDate).getTime() : 0
+                      if (sMs > lastMs) { lane.push(task); placed = true; break }
+                    }
+                    if (!placed) lanes.push([task])
+                  }
+                  const rowHeight = Math.max(lanes.length, 1) * ROW_H + 8
+                  const color = assigneeColor(assigneeType)
+                  const isHex = color.startsWith("#")
+                  return [
+                    assigneeType !== tlVisibleRows[idx - 1]?.type ? (
+                      <div key={`tlh-${assigneeType}`} className="flex border border-border bg-muted/50">
+                        <div style={{ width: ASSIGNEE_COL_W, minWidth: ASSIGNEE_COL_W }} className="sticky left-0 z-10 bg-muted/50 px-3 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">{TYPE_LABELS[assigneeType]}</div>
+                        <div className="flex-1" />
+                      </div>
+                    ) : null,
+                    <div key={assignee} className="flex border-b border-border hover:bg-muted/10 transition-colors">
+                      <div style={{ width: ASSIGNEE_COL_W, minWidth: ASSIGNEE_COL_W, height: rowHeight }} className="sticky left-0 z-10 bg-background border-r border-border px-3 py-2 font-medium flex items-start gap-1.5 shrink-0">
+                        <span style={{ color }}>{assignee}</span>
+                        {(assigneeType === "role" || assigneeType === "team") && (
+                          <span className="text-[10px] font-normal rounded px-1 mt-0.5" style={{ color, border: `1px solid ${color}` }}>
+                            {assigneeType === "role" ? "Role" : "Group"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="relative flex-1" style={{ height: rowHeight }}>
+                        {/* Weekend shading */}
+                        {tlDays.map((d, i) => !d.isWeekend ? null : (
+                          <div key={d.key} className="absolute top-0 bottom-0 bg-muted/20 pointer-events-none" style={{ left: `${(i / totalDays) * 100}%`, width: `${(1 / totalDays) * 100}%` }} />
+                        ))}
+                        {/* Week start markers */}
+                        {tlDays.map((d, i) => !mondayKeys.has(d.key) ? null : (
+                          <div key={`wk-${d.key}`} className="absolute top-0 bottom-0 border-l-2 border-border/60 pointer-events-none" style={{ left: `${(i / totalDays) * 100}%` }} />
+                        ))}
+                        {/* Today highlight */}
+                        {todayIdx >= 0 && (
+                          <div className="absolute top-0 bottom-0 bg-primary/10 pointer-events-none" style={{ left: `${(todayIdx / totalDays) * 100}%`, width: `${(1 / totalDays) * 100}%` }} />
+                        )}
+                        {lanes.map((lane, laneIdx) =>
+                          lane.map(task => {
+                            const bar = getBarPos(task)
+                            if (!bar) return null
+                            const pName = task.projectId != null ? projects.find(p => p.projectId === task.projectId)?.title : null
+                            return (
+                              <button
+                                key={task.taskId}
+                                onClick={() => setSelectedTask(task)}
+                                title={[task.name ?? `Task ${task.taskId}`, pName].filter(Boolean).join(" · ")}
+                                className="absolute flex items-center px-1.5 rounded overflow-hidden whitespace-nowrap hover:brightness-95 transition-all cursor-pointer"
+                                style={{
+                                  left: bar.left,
+                                  top: laneIdx * ROW_H + 4,
+                                  width: bar.width,
+                                  height: ROW_H - 8,
+                                  backgroundColor: isHex ? color + "33" : "color-mix(in oklch, var(--primary) 20%, transparent)",
+                                  border: `1px solid ${isHex ? color + "88" : "color-mix(in oklch, var(--primary) 50%, transparent)"}`,
+                                  color,
+                                  fontSize: 10,
+                                  fontWeight: 500,
+                                }}
+                              >
+                                <span className="truncate">{task.name ?? `Task ${task.taskId}`}</span>
+                                {task.estimatedWork != null && task.estimatedWork > 0 && (
+                                  <span className="ml-1 shrink-0 opacity-70">{fmtMinutes(task.estimatedWork)}</span>
+                                )}
+                              </button>
+                            )
+                          })
+                        )}
+                      </div>
+                    </div>,
+                  ]
+                })}
+              </div>
+            </div>
+          )
+        })() : (
           <div className="flex-1 overflow-auto">
             <table className="w-full border-collapse text-base min-w-max">
               <thead>
@@ -1637,7 +1852,7 @@ export default function TeamCapacityPage() {
             </table>
 
           </div>
-        )}
+        ))}
       </main>
       {!hideHeader && <Footer />}
 
