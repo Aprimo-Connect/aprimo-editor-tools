@@ -464,8 +464,28 @@ View and manage task assignments across projects using the Aprimo Productivity (
 - Select one or more projects from the sidebar; tasks load automatically
 - Both regular tasks and **review tasks** are fetched — review tasks appear with a blue **Review** badge in the capacity grid
 - Tasks are grouped by assignee — individual users, roles, teams, or unassigned — with estimated work shown per time period
-- Toggle between **Week** and **Day** views
+- Toggle between **Week**, **Day**, and **Timeline** views
 - Click any task row to open a detail modal
+
+**View modes**
+
+| View | Description |
+|------|-------------|
+| Week | Estimated work per assignee per calendar week |
+| Day | Estimated work per assignee per calendar day |
+| Timeline | Gantt-style chart showing each task as a horizontal bar spanning its `beginDate` to `endDate` |
+
+**Timeline view**
+
+The Timeline view renders a scrollable Gantt chart. Each assignee group has its own swim lane, and tasks within a lane are stacked using a greedy interval-scheduling algorithm to avoid overlap.
+
+- **Date columns** — days are scaled proportionally to fill 100% of the available width (minimum 30 px per day); horizontal scroll appears when the date range is too wide
+- **Week boundaries** — Mondays are marked with a vertical divider line; a week header row shows the date range for each ISO week (e.g. `Sep 22 – Sep 28`)
+- **Month header** — a row above the week row groups days by calendar month with proportional flex widths
+- **Task bars** — bars are clickable and show the task name and estimated work; hovering reveals a tooltip with the project name; bar position and width are calculated from `beginDate` and `endDate`
+- **Lane stacking** — overlapping tasks are placed on separate sub-rows within the same assignee group; the algorithm sorts tasks by start date and uses the first non-overlapping lane
+- **Group headers** — role, team, and unassigned section labels appear in the sticky assignee column above their tasks
+- **Assignee column** — fixed at 300 px; shows the user or group name
 
 **Task modal**
 
@@ -475,6 +495,14 @@ View and manage task assignments across projects using the Aprimo Productivity (
 - **Delegate** — for in-process tasks with an active assignee, search for a user and delegate the task via `POST /tasks/{taskId}/delegate`; guards against non-delegatable states (task not yet accepted, no active assignee, 409 conflict) with clear error messages
 - For role and team tasks the member list is read-only — delegation is not available until the task has been accepted by an assignee
 - **Open Project** — opens the project in Aprimo and closes the modal
+
+**Rate-limit handling**
+
+The PM API enforces request-rate limits. The page handles these automatically:
+
+- Project tasks are fetched in sequential batches of 3 (rather than all in parallel) to stay within the API rate limit
+- User lookups are batched in groups of 5
+- Any `429 Too Many Requests` response triggers an automatic retry with exponential backoff (2 s → 4 s → 8 s, up to 3 retries). If all retries are exhausted, a clear error message is shown
 
 **Environment variables**
 
