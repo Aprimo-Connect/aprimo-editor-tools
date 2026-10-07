@@ -142,10 +142,18 @@ function ValueCombobox({
 }
 
 interface SaveResult {
-  recordId: string
+  matchValue: string
+  recordId?: string
   success: boolean
   error?: string
+  note?: string
 }
+
+type MatchMode = "id" | "field"
+
+// Field types whose stored value compares directly to a cell's text, so they
+// can be matched with a FieldName("x") = "value" expression.
+const MATCHABLE_TYPES = ["SingleLineText", "MultiLineText", "TextList", "Html", "Numeric"]
 
 
 export default function ExcelImportPage() {
@@ -160,6 +168,8 @@ export default function ExcelImportPage() {
   const [loading, setLoading] = useState(false)
   const [selectedHeaders, setSelectedHeaders] = useState<Set<string>>(new Set())
   const [recordIdColumn, setRecordIdColumn] = useState<string>("")
+  const [matchMode, setMatchMode] = useState<MatchMode>("id")
+  const [matchFieldName, setMatchFieldName] = useState<string>("")
   const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({})
   const [classificationMappings, setClassificationMappings] = useState<Record<string, Record<string, string>>>({})
   const [optionMappings, setOptionMappings] = useState<Record<string, Record<string, string>>>({})
@@ -288,6 +298,32 @@ export default function ExcelImportPage() {
   }
 
   const mappableColumns = Array.from(selectedHeaders).filter((h) => h !== recordIdColumn)
+
+  const matchFieldNodes: FlatNode[] = fieldDefs
+    .filter((d) => MATCHABLE_TYPES.includes(d.dataType))
+    .map((d) => ({ id: d.name, label: d.label && d.label !== d.name ? `${d.label} (${d.name})` : d.name, depth: 0 }))
+
+  // Default the match field to the filename field, the most common lookup key.
+  useEffect(() => {
+    if (matchMode !== "field" || matchFieldName || !fieldDefs.length) return
+    const filename = fieldDefs.find((d) => MATCHABLE_TYPES.includes(d.dataType) && ["_filename", "filename"].includes(d.name.toLowerCase()))
+    if (filename) setMatchFieldName(filename.name)
+  }, [matchMode, matchFieldName, fieldDefs])
+
+  // Resolve a row's match value to a record id: either the value itself (id
+  // mode) or the first record whose match field equals the value.
+  async function resolveRecordId(matchValue: string): Promise<{ recordId?: string; error?: string; note?: string }> {
+    if (matchMode === "id") return { recordId: matchValue }
+    const q = (s: string) => s.replace(/"/g, '""')
+    const expression = `FieldName("${q(matchFieldName)}") = "${q(matchValue)}"`
+    const r = await client!.search.records({ searchExpression: { expression }, page: 1, pageSize: 1 } as never)
+    if (!r.ok) return { error: r.error?.message ?? `Search failed (HTTP ${r.status})` }
+    const data = r.data as unknown as { totalCount?: number; items?: { id: string }[] }
+    const first = data.items?.[0]
+    if (!first) return { error: "No matching record found" }
+    const total = data.totalCount ?? 1
+    return { recordId: first.id, note: total > 1 ? `${total} matches — updated first` : undefined }
+  }
 
   useEffect(() => {
     if (!fieldDefs.length || !mappableColumns.length) return
@@ -419,6 +455,7 @@ export default function ExcelImportPage() {
 
   async function handleSave() {
     if (!client || !recordIdColumn || !languageId) return
+    if (matchMode === "field" && !matchFieldName) return
 
     const dataRows = rows.filter((row) => row[recordIdColumn]?.trim())
     setSaving(true)
@@ -429,7 +466,7 @@ export default function ExcelImportPage() {
 
     for (let i = 0; i < dataRows.length; i++) {
       const row = dataRows[i]
-      const recordId = row[recordIdColumn].trim()
+      const matchValue = row[recordIdColumn].trim()
 
       type FieldUpdate = { id: string; localizedValues: { languageId: string; values?: string[]; value?: string }[] }
       const fieldUpdates = mappableColumns
@@ -477,23 +514,30 @@ export default function ExcelImportPage() {
         })
 
       if (!fieldUpdates.length) {
-        results.push({ recordId, success: true })
+        results.push({ matchValue, recordId: matchMode === "id" ? matchValue : undefined, success: true, note: "Nothing to update" })
         setSaveProgress({ done: i + 1, total: dataRows.length })
         continue
       }
 
+      let recordId: string | undefined
       try {
-        const body: Record<string, unknown> = {
-          fields: { addOrUpdate: fieldUpdates },
-        }
-        const result = await client.records.update(recordId, body as never)
-        if (result.ok) {
-          results.push({ recordId, success: true })
+        const resolved = await resolveRecordId(matchValue)
+        recordId = resolved.recordId
+        if (!recordId) {
+          results.push({ matchValue, success: false, error: resolved.error })
         } else {
-          results.push({ recordId, success: false, error: result.error?.message ?? `HTTP ${result.status}` })
+          const body: Record<string, unknown> = {
+            fields: { addOrUpdate: fieldUpdates },
+          }
+          const result = await client.records.update(recordId, body as never)
+          if (result.ok) {
+            results.push({ matchValue, recordId, success: true, note: resolved.note })
+          } else {
+            results.push({ matchValue, recordId, success: false, error: result.error?.message ?? `HTTP ${result.status}`, note: resolved.note })
+          }
         }
       } catch (err) {
-        results.push({ recordId, success: false, error: err instanceof Error ? err.message : "Unknown error" })
+        results.push({ matchValue, recordId, success: false, error: err instanceof Error ? err.message : "Unknown error" })
       }
 
       setSaveProgress({ done: i + 1, total: dataRows.length })
@@ -509,7 +553,7 @@ export default function ExcelImportPage() {
     return def?.isReadOnly
   })
 
-  const canSave = !saving && !!recordIdColumn && !!languageId && rows.length > 0 && mappableColumns.some((c) => fieldMappings[c]) && numericErrors.length === 0 && !hasReadOnlyMapped
+  const canSave = !saving && !!recordIdColumn && (matchMode === "id" || !!matchFieldName) && !!languageId && rows.length > 0 && mappableColumns.some((c) => fieldMappings[c]) && numericErrors.length === 0 && !hasReadOnlyMapped
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -626,7 +670,38 @@ export default function ExcelImportPage() {
               {selectedHeaders.size > 0 && (
                 <div className="pt-2 border-t border-border space-y-3">
                   <div className="flex items-center gap-3">
-                    <Label htmlFor="record-id-col" className="text-sm whitespace-nowrap w-32">Record ID column</Label>
+                    <Label htmlFor="match-mode" className="text-sm whitespace-nowrap w-32">Match by</Label>
+                    <Select value={matchMode} onValueChange={(v) => setMatchMode(v as MatchMode)}>
+                      <SelectTrigger id="match-mode" className="w-56 h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="id" className="text-xs">Record ID</SelectItem>
+                        <SelectItem value="field" className="text-xs">Field value</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {matchMode === "field" && (
+                    <div className="flex items-center gap-3">
+                      <Label className="text-sm whitespace-nowrap w-32">Match field</Label>
+                      <div className="w-56">
+                        <ValueCombobox
+                          nodes={matchFieldNodes}
+                          value={matchFieldName}
+                          onChange={setMatchFieldName}
+                          placeholder="Select a field…"
+                          searchPlaceholder="Search fields…"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        The first record whose field equals the cell value is updated.
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <Label htmlFor="record-id-col" className="text-sm whitespace-nowrap w-32">
+                      {matchMode === "id" ? "Record ID column" : "Match column"}
+                    </Label>
                     <Select value={recordIdColumn} onValueChange={setRecordIdColumn}>
                       <SelectTrigger id="record-id-col" className="w-56 h-8 text-xs">
                         <SelectValue placeholder="Select a column…" />
@@ -865,20 +940,28 @@ export default function ExcelImportPage() {
                   <thead>
                     <tr className="border-b border-border bg-muted/50">
                       <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground w-8"></th>
+                      {matchMode === "field" && (
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Match value</th>
+                      )}
                       <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Record ID</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Error</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Details</th>
                     </tr>
                   </thead>
                   <tbody>
                     {saveResults.map((r, i) => (
-                      <tr key={r.recordId} className={i % 2 === 0 ? "bg-muted/20" : ""}>
+                      <tr key={i} className={i % 2 === 0 ? "bg-muted/20" : ""}>
                         <td className="px-4 py-2">
                           {r.success
                             ? <CheckCircle2 className="h-4 w-4 text-green-500" />
                             : <XCircle className="h-4 w-4 text-destructive" />}
                         </td>
-                        <td className="px-4 py-2 font-mono text-xs">{r.recordId}</td>
-                        <td className="px-4 py-2 text-xs text-muted-foreground">{r.error ?? ""}</td>
+                        {matchMode === "field" && (
+                          <td className="px-4 py-2 font-mono text-xs">{r.matchValue}</td>
+                        )}
+                        <td className="px-4 py-2 font-mono text-xs">{r.recordId ?? ""}</td>
+                        <td className="px-4 py-2 text-xs text-muted-foreground">
+                          {[r.error, r.note].filter(Boolean).join(" · ")}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

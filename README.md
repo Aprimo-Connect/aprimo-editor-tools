@@ -276,13 +276,16 @@ When the page loads with `?requestId=` (or `?record=`) a project picker modal le
 Import metadata from an Excel file into Aprimo records.
 
 - Upload an `.xlsx` / `.xls` file and select which columns to map
+- **Match by** how each row finds its record:
+  - **Record ID** (default) — a column holds the Aprimo record ID; guarantees exactly one match
+  - **Field value** — pick a column and a text or numeric Aprimo field (defaults to `_Filename` when present); each row searches `FieldName("<field>") = "<value>"` and updates the **first** match. Results flag rows with no match or with multiple matches (`N matches — updated first`)
 - Map Excel columns to Aprimo field definitions (auto-matched by name)
 - Map classification and option-list values from the spreadsheet to Aprimo values (auto-matched by name/label; option lists honor the field's single- vs multi-select setting)
 - Supports single-line / multi-line text, HTML, numeric, date / time, text list, classification, and option-list fields
 - Date cells are normalized to the format each field type expects (`yyyy-MM-dd`, ISO 8601, or `HH:mm:ss`)
 - **View contents** — preview the parsed sheet in a dialog; classification / option values that need manual matching are highlighted
 - Choose the target language for localized field values
-- Saves to Aprimo using `records.update()` with built-in rate-limit handling
+- Saves to Aprimo using `records.update()` with built-in rate-limit handling; the results table shows the match value, resolved record ID, and any error or note per row
 
 ### Text to Speech
 
