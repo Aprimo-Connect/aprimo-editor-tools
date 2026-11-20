@@ -34,6 +34,19 @@ async function verifySignature(request: NextRequest, rawBody: string): Promise<b
   return mismatch === 0
 }
 
+// Base URL for action links: APP_BASE_URL env var if set, otherwise the domain of the current request.
+function getBaseUrl(request: NextRequest): string {
+  const configured = process.env.APP_BASE_URL?.trim()
+  if (configured) return configured.replace(/\/+$/, "")
+
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host")
+  if (host) {
+    const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "")
+    return `${proto}://${host}`
+  }
+  return request.nextUrl.origin
+}
+
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text()
@@ -60,11 +73,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing action query parameter" }, { status: 400 })
     }
 
-    const returnUrl = actionMap[action as keyof typeof actionMap]
-    if (!returnUrl) {
+    const actionPath = actionMap[action as keyof typeof actionMap]
+    if (!actionPath) {
       console.warn(`[webhook] Unknown action: "${action}"`)
       return NextResponse.json({ error: `Unknown action: "${action}"` }, { status: 404 })
     }
+    const returnUrl = new URL(actionPath, getBaseUrl(request)).toString()
 
     const { recordIds } = payload as { recordIds?: string }
     const mode = request.nextUrl.searchParams.get("mode")
